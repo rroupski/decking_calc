@@ -551,7 +551,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
     case input.board_direction do
       :along_length ->
         rows =
-          for i <- 1..max(row_count, 0) do
+          for i <- 1..row_count//1 do
             h = if i == row_count, do: layout.last_row_width, else: bw
             %{x: inset_x, y: inset_y + (i - 1) * (bw + gap), w: layout.field_length, h: h}
           end
@@ -577,7 +577,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
         # Boards run along Y axis. layout.field_length corresponds to
         # patio_width; layout.field_width corresponds to patio_length.
         rows =
-          for i <- 1..max(row_count, 0) do
+          for i <- 1..row_count//1 do
             w = if i == row_count, do: layout.last_row_width, else: bw
             %{x: inset_x + (i - 1) * (bw + gap), y: inset_y, w: w, h: layout.field_length}
           end
