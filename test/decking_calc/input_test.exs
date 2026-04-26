@@ -6,7 +6,7 @@ defmodule DeckingCalc.InputTest do
   test "builds from default params" do
     assert {:ok, input} = Input.new(Input.default_params())
     assert input.patio_length == 4000
-    assert input.stock_lengths == [6000, 3600, 3000]
+    assert input.stock_lengths == [4000, 3600, 3000]
     assert input.picture_frame == nil
   end
 

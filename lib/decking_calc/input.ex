@@ -41,7 +41,7 @@ defmodule DeckingCalc.Input do
             patio_width: nil,
             board_width: nil,
             board_thickness: 25,
-            stock_lengths: [3000, 3600, 6000],
+            stock_lengths: [3000, 3600, 4000],
             gap: 5,
             end_gap: 3,
             board_direction: :along_length,
@@ -100,10 +100,10 @@ defmodule DeckingCalc.Input do
   def default_params do
     %{
       "patio_length" => 4000,
-      "patio_width" => 3000,
-      "board_width" => 145,
+      "patio_width" => 3500,
+      "board_width" => 150,
       "board_thickness" => 25,
-      "stock_lengths" => "3000, 3600, 6000",
+      "stock_lengths" => "3000, 3600, 4000",
       "gap" => 5,
       "end_gap" => 3,
       "board_direction" => "along_length",
@@ -154,7 +154,7 @@ defmodule DeckingCalc.Input do
   defp to_atom(_), do: nil
 
   defp default_for(:board_thickness), do: 25
-  defp default_for(:stock_lengths), do: [3000, 3600, 6000]
+  defp default_for(:stock_lengths), do: [3000, 3600, 4000]
   defp default_for(:gap), do: 5
   defp default_for(:end_gap), do: 3
   defp default_for(:board_direction), do: :along_length
