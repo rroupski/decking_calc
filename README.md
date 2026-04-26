@@ -39,6 +39,61 @@ LiveView process.
   picture-frame geometry, and summary.
 - `lib/decking_calc_web/live/calculator_live.ex` — LiveView UI.
 
+## Input parameters
+
+All linear measurements are in **millimetres**.
+
+### Patio dimensions
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `patio_length` | positive integer | yes | — | Overall length of the patio (the longer axis, or whichever axis you treat as length). |
+| `patio_width` | positive integer | yes | — | Overall width of the patio (the shorter axis). |
+
+### Board stock
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `board_width` | positive integer | yes | — | Face width of each decking board (e.g. 90, 140, 150). |
+| `board_thickness` | positive integer | no | `25` | Thickness of each board. Used for picture-frame geometry calculations. |
+| `stock_lengths` | comma-separated list of positive integers | no | `3000, 3600, 4000` | Available lengths of purchased board stock. The cut-list planner tries each length to minimise waste. At least one length must be supplied. |
+
+### Gaps and tolerances
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `gap` | non-negative integer | no | `5` | Side-to-side expansion gap between adjacent field boards. |
+| `end_gap` | non-negative integer | no | `3` | Gap left between the end of a board and the outer frame or fascia. |
+| `kerf` | non-negative integer | no | `3` | Material removed by the saw blade per cut. Applied once per actual cut; no kerf is deducted when a piece is used at its full stock length. |
+| `min_reuse` | non-negative integer | no | `300` | Minimum offcut length considered worth keeping for reuse in subsequent rows. Offcuts shorter than this value are counted as waste. |
+
+### Layout
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `board_direction` | `along_length` or `along_width` | no | `along_length` | Axis along which boards run. `along_length` means boards span the patio length and rows stack across the width; `along_width` reverses the axes. |
+| `max_joist_spacing` | positive integer | no | `400` | Maximum allowable centre-to-centre spacing between joists. The calculator finds the smallest number of joists such that actual spacing ≤ this value. |
+
+### Picture-frame border
+
+An optional decorative border that frames the field boards around the perimeter of the patio. Enable it by checking the picture-frame option in the UI.
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `picture_frame_enabled` | boolean | no | `false` | Whether to include a picture-frame border. |
+| `picture_frame_border_boards` | positive integer | no | `1` | Number of boards wide the border is on each side of the patio. |
+
+When enabled, the calculator subtracts the border width from the available field area, generates a separate cut list for the border boards, and reports mitred or butt-jointed corner options.
+
+### Transverse band
+
+An optional accent band of boards running perpendicular to the main field boards (e.g. across the width of the deck).
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `transverse_frame_enabled` | boolean | no | `false` | Whether to include a transverse band. |
+| `transverse_band_boards` | positive integer | no | `1` | Number of boards wide the transverse band is. |
+
 ## Notes on assumptions
 
 - Boards run in one direction across the entire field; the opposite axis is
