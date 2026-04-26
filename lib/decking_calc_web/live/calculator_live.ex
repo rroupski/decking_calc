@@ -352,44 +352,62 @@ defmodule DeckingCalcWeb.CalculatorLive do
       <.diagram result={@result} />
 
       <h3 class="font-semibold">Boards to purchase</h3>
-      <ul class="list-disc list-inside text-sm">
-        <%= for {len, n} <- Enum.sort_by(@result.summary.boards_by_stock, fn {l, _} -> -l end) do %>
-          <li>
-            <strong>{n}</strong> × <strong>{fmt_length(len)}</strong> boards
-          </li>
-        <% end %>
-        <%= if @result.summary.boards_by_stock == %{} do %>
-          <li>No boards required.</li>
-        <% end %>
-      </ul>
+      <%= if @result.summary.boards_by_stock == %{} do %>
+        <p class="text-sm text-base-content/50">No boards required.</p>
+      <% else %>
+        <div class="flex flex-wrap gap-2">
+          <%= for {len, n} <- Enum.sort_by(@result.summary.boards_by_stock, fn {l, _} -> -l end) do %>
+            <div class="inline-flex items-center gap-1.5 rounded-lg bg-base-100 border border-base-300 px-3 py-1.5 text-sm">
+              <span class="font-semibold text-base-content">{n}</span>
+              <span class="text-base-content/40">×</span>
+              <span class="font-mono text-base-content/80">{fmt_length(len)}</span>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
 
       <h3 class="font-semibold">Cut list</h3>
-      <div class="overflow-x-auto">
-        <table class="table table-zebra table-sm">
+      <div class="overflow-x-auto rounded-xl border border-base-300">
+        <table class="table table-sm w-full">
           <thead>
-            <tr>
-              <th>Row</th>
-              <th class="text-right">Row length</th>
-              <th>Cuts (source · length)</th>
+            <tr class="bg-base-200 text-base-content/50 text-xs uppercase tracking-wide">
+              <th class="py-2.5 pl-4">Row</th>
+              <th class="py-2.5 text-right pr-4">Length</th>
+              <th class="py-2.5">Pieces</th>
             </tr>
           </thead>
           <tbody>
             <%= for row <- @result.cut_list.rows do %>
-              <tr>
-                <td class="font-mono">{format_row_id(row.row_id)}</td>
-                <td class="text-right">{fmt_length(row.row_length)}</td>
-                <td>
-                  <%= for cut <- row.cuts do %>
-                    <span class="badge badge-outline badge-sm mr-1 mb-1">
-                      {format_cut(cut)}
+              <tr class="border-t border-base-200 hover:bg-base-200/40 transition-colors duration-100">
+                <td class="py-2 pl-4 whitespace-nowrap">
+                  <div class="flex items-center gap-2">
+                    <span class={["badge badge-xs font-medium", row_type_badge_class(row.row_id)]}>
+                      {row_type_label(row.row_id)}
                     </span>
-                  <% end %>
+                    <span class="text-xs text-base-content/50 font-mono">
+                      {row_index_label(row.row_id)}
+                    </span>
+                  </div>
+                </td>
+                <td class="py-2 text-right pr-4 whitespace-nowrap">
+                  <span class="text-sm font-mono text-base-content/70">
+                    {fmt_length(row.row_length)}
+                  </span>
+                </td>
+                <td class="py-2 pr-3">
+                  <div class="flex flex-wrap gap-1">
+                    <%= for cut <- row.cuts do %>
+                      <.cut_chip cut={cut} />
+                    <% end %>
+                  </div>
                 </td>
               </tr>
             <% end %>
             <%= if @result.cut_list.rows == [] do %>
               <tr>
-                <td colspan="3" class="text-base-content/60">No rows to cut.</td>
+                <td colspan="3" class="py-10 text-center text-sm text-base-content/40">
+                  No rows to cut.
+                </td>
               </tr>
             <% end %>
           </tbody>
@@ -397,13 +415,14 @@ defmodule DeckingCalcWeb.CalculatorLive do
       </div>
 
       <%= if @result.cut_list.unused_offcuts != [] do %>
-        <p class="text-xs text-base-content/70">
-          Remaining usable offcuts: {Enum.map_join(
-            @result.cut_list.unused_offcuts,
-            ", ",
-            &"#{&1} mm"
-          )}
-        </p>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs text-base-content/50">Usable offcuts remaining:</span>
+          <%= for len <- @result.cut_list.unused_offcuts do %>
+            <span class="inline-flex items-center rounded-md bg-success/10 px-2 py-0.5 text-xs font-mono text-success border border-success/20">
+              {fmt_length(len)}
+            </span>
+          <% end %>
+        </div>
       <% end %>
     </div>
     """
@@ -595,22 +614,47 @@ defmodule DeckingCalcWeb.CalculatorLive do
     end
   end
 
-  defp format_row_id({:field, i}), do: "field #{i}"
-  defp format_row_id({:field, s, i}), do: "seg #{s} field #{i}"
-  defp format_row_id({:border_cap, i}), do: "end cap #{i}"
-  defp format_row_id({:band, d, i}), do: "breaker #{d} board #{i}"
-  defp format_row_id(other), do: inspect(other)
+  attr :cut, :map, required: true
+
+  defp cut_chip(%{cut: %{source: :stock}} = assigns) do
+    ~H"""
+    <span class="inline-flex items-center gap-1 rounded-md bg-primary/8 px-2 py-0.5 text-xs font-mono border border-primary/15">
+      <span class="text-base-content/40">{fmt_length(@cut.stock_length)}</span>
+      <span class="text-base-content/25">→</span>
+      <span class="text-primary font-semibold">{fmt_length(@cut.length)}</span>
+    </span>
+    """
+  end
+
+  defp cut_chip(%{cut: %{source: :offcut}} = assigns) do
+    ~H"""
+    <span class="inline-flex items-center gap-1 rounded-md bg-success/8 px-2 py-0.5 text-xs font-mono border border-success/15">
+      <span class="text-base-content/40">offcut →</span>
+      <span class="text-success font-semibold">{fmt_length(@cut.length)}</span>
+    </span>
+    """
+  end
+
+  defp row_type_label({:field, _}), do: "Field"
+  defp row_type_label({:field, _, _}), do: "Field"
+  defp row_type_label({:border_cap, _}), do: "Cap"
+  defp row_type_label({:band, _, _}), do: "Band"
+  defp row_type_label(_), do: "Row"
+
+  defp row_type_badge_class({:field, _}), do: "badge-neutral"
+  defp row_type_badge_class({:field, _, _}), do: "badge-neutral"
+  defp row_type_badge_class({:border_cap, _}), do: "badge-secondary"
+  defp row_type_badge_class({:band, _, _}), do: "badge-accent"
+  defp row_type_badge_class(_), do: "badge-ghost"
+
+  defp row_index_label({:field, i}), do: "##{i}"
+  defp row_index_label({:field, s, i}), do: "S#{s} · ##{i}"
+  defp row_index_label({:border_cap, i}), do: "##{i}"
+  defp row_index_label({:band, d, i}), do: "B#{d} · ##{i}"
+  defp row_index_label(_), do: ""
 
   defp field_row_length(%{transverse_frame: %{segment_length: sl}}), do: sl
   defp field_row_length(%{layout: %{row_length: rl}}), do: rl
-
-  defp format_cut(%{source: :stock, stock_length: sl, length: l}) do
-    "stock #{sl} → #{l} mm"
-  end
-
-  defp format_cut(%{source: :offcut, length: l}) do
-    "offcut → #{l} mm"
-  end
 
   defp fmt_length(mm) when is_integer(mm) do
     if mm >= 1000 do
