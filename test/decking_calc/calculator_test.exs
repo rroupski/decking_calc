@@ -46,23 +46,44 @@ defmodule DeckingCalc.CalculatorTest do
       assert layout.last_row_width in 145..160
     end
 
-    test "subtracts a picture-frame border from the field area" do
+    test "end-cap border insets only the axis along which boards run" do
       input =
         input!(%{
           patio_length: 4000,
           patio_width: 3000,
           board_width: 145,
           gap: 5,
+          board_direction: :along_length,
           picture_frame_enabled: true,
-          picture_frame_border_boards: 1,
-          picture_frame_mitre: true
+          picture_frame_border_boards: 1
         })
 
       layout = Calculator.layout(input)
 
-      # Inset on each side = 145 + 5 = 150 (1 border board + gap before field).
+      # Inset at each end = 145 + 5 = 150 (1 cap board + gap before field).
       assert layout.field_length == 4000 - 2 * 150
-      assert layout.field_width == 3000 - 2 * 150
+      # Width is unchanged: no long-side borders.
+      assert layout.field_width == 3000
+    end
+
+    test "end-cap border insets the perpendicular axis when boards run along width" do
+      input =
+        input!(%{
+          patio_length: 4000,
+          patio_width: 3000,
+          board_width: 145,
+          gap: 5,
+          board_direction: :along_width,
+          picture_frame_enabled: true,
+          picture_frame_border_boards: 1
+        })
+
+      layout = Calculator.layout(input)
+
+      # field_length tracks the axis along which boards run (here patio_width)
+      # and is reduced by the end-cap inset.
+      assert layout.field_length == 3000 - 2 * 150
+      assert layout.field_width == 4000
     end
   end
 
@@ -84,39 +105,36 @@ defmodule DeckingCalc.CalculatorTest do
       assert Calculator.picture_frame_plan(input!()) == nil
     end
 
-    test "mitred corners: short sides span full outer edge" do
+    test "end caps span the full perpendicular axis (along_length)" do
       input =
         input!(%{
           patio_length: 4000,
           patio_width: 3000,
+          board_direction: :along_length,
           picture_frame_enabled: true,
-          picture_frame_border_boards: 2,
-          picture_frame_mitre: true
+          picture_frame_border_boards: 2
         })
 
       pf = Calculator.picture_frame_plan(input)
-      assert pf.long_side_length == 4000
-      assert pf.short_side_length == 3000
-      assert pf.long_side_count == 4
-      assert pf.short_side_count == 4
+      # Caps run perpendicular to the field boards, spanning patio_width.
+      assert pf.cap_length == 3000
+      assert pf.cap_count == 4
+      assert pf.border_boards == 2
     end
 
-    test "butt corners: short sides fit between long sides" do
+    test "end caps span patio_length when boards run along the width" do
       input =
         input!(%{
           patio_length: 4000,
           patio_width: 3000,
-          board_width: 145,
-          gap: 5,
+          board_direction: :along_width,
           picture_frame_enabled: true,
-          picture_frame_border_boards: 1,
-          picture_frame_mitre: false
+          picture_frame_border_boards: 1
         })
 
       pf = Calculator.picture_frame_plan(input)
-      # thickness = 1 * 145 + 0 = 145. short = 3000 - 2*145 = 2710.
-      assert pf.short_side_length == 2710
-      assert pf.long_side_length == 4000
+      assert pf.cap_length == 4000
+      assert pf.cap_count == 2
     end
   end
 
@@ -132,18 +150,18 @@ defmodule DeckingCalc.CalculatorTest do
       assert is_float(result.summary.waste_pct)
     end
 
-    test "includes border rows when picture frame enabled" do
+    test "includes end-cap rows when picture frame enabled" do
       input =
         input!(%{
           picture_frame_enabled: true,
-          picture_frame_border_boards: 1,
-          picture_frame_mitre: true
+          picture_frame_border_boards: 1
         })
 
       result = Calculator.compute(input)
-      border_rows = Enum.filter(result.cut_list.rows, &match?({:border_long, _}, &1.row_id))
-      assert length(border_rows) == 2
-      assert result.summary.border_boards == 4
+      cap_rows = Enum.filter(result.cut_list.rows, &match?({:border_cap, _}, &1.row_id))
+      # 2 ends * 1 board per end = 2 cap boards.
+      assert length(cap_rows) == 2
+      assert result.summary.border_boards == 2
     end
   end
 

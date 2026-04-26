@@ -15,10 +15,9 @@ defmodule DeckingCalc.InputTest do
       Input.default_params()
       |> Map.put("picture_frame_enabled", "true")
       |> Map.put("picture_frame_border_boards", "2")
-      |> Map.put("picture_frame_mitre", "true")
 
     assert {:ok, input} = Input.new(params)
-    assert input.picture_frame == %{border_boards: 2, mitre: true}
+    assert input.picture_frame == %{border_boards: 2}
   end
 
   test "reports per-field errors" do

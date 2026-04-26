@@ -33,11 +33,8 @@ defmodule DeckingCalc.Calculator do
 
   @type picture_frame_plan :: %{
           border_boards: pos_integer(),
-          mitre: boolean(),
-          long_side_length: pos_integer(),
-          short_side_length: pos_integer(),
-          long_side_count: pos_integer(),
-          short_side_count: pos_integer()
+          cap_length: pos_integer(),
+          cap_count: pos_integer()
         }
 
   @type transverse_frame_plan :: %{
@@ -109,6 +106,9 @@ defmodule DeckingCalc.Calculator do
   def layout(%Input{} = input) do
     {long, short} = long_short(input)
 
+    # Picture-frame end caps inset only the axis along which boards run
+    # (i.e. the long axis); they do not shorten the perpendicular field
+    # width because there are no long-side borders.
     border_inset =
       case input.picture_frame do
         nil -> 0
@@ -116,7 +116,7 @@ defmodule DeckingCalc.Calculator do
       end
 
     field_length = max(long - 2 * border_inset, 0)
-    field_width = max(short - 2 * border_inset, 0)
+    field_width = short
 
     pitch = input.board_width + input.gap
     # Number of full board rows that fit in field_width, accounting for the
@@ -184,33 +184,24 @@ defmodule DeckingCalc.Calculator do
   end
 
   @doc """
-  Derives the perimeter cut requirements for a picture-frame border.
+  Derives the cut requirements for a picture-frame border.
+
+  The frame consists of end-cap boards laid perpendicular to the field
+  boards at each end of the run. Each cap board spans the full short
+  axis (perpendicular to the boards). There are no long-side borders.
+
   Returns `nil` when no picture frame is configured.
   """
   @spec picture_frame_plan(Input.t()) :: picture_frame_plan() | nil
   def picture_frame_plan(%Input{picture_frame: nil}), do: nil
 
-  def picture_frame_plan(%Input{picture_frame: %{border_boards: n, mitre: mitre}} = input) do
-    {long, short} = long_short(input)
-    # For a mitre joint the corner boards span the full outer edge; for butt
-    # joints the short sides fit between the long sides, so subtract twice
-    # the border thickness (border_boards * board_width + gaps).
-    thickness = n * input.board_width + max(n - 1, 0) * input.gap
-
-    {long_side_len, short_side_len} =
-      if mitre do
-        {long, short}
-      else
-        {long, max(short - 2 * thickness, 0)}
-      end
+  def picture_frame_plan(%Input{picture_frame: %{border_boards: n}} = input) do
+    {_long, short} = long_short(input)
 
     %{
       border_boards: n,
-      mitre: mitre,
-      long_side_length: long_side_len,
-      short_side_length: short_side_len,
-      long_side_count: 2 * n,
-      short_side_count: 2 * n
+      cap_length: short,
+      cap_count: 2 * n
     }
   end
 
@@ -296,15 +287,8 @@ defmodule DeckingCalc.Calculator do
 
   defp border_rows(nil), do: []
 
-  defp border_rows(%{
-         long_side_count: lc,
-         long_side_length: ll,
-         short_side_count: sc,
-         short_side_length: sl
-       }) do
-    long = for i <- 1..lc, do: {{:border_long, i}, ll}
-    short = for i <- 1..sc, do: {{:border_short, i}, sl}
-    long ++ short
+  defp border_rows(%{cap_count: cc, cap_length: cl}) do
+    for i <- 1..cc, do: {{:border_cap, i}, cl}
   end
 
   defp band_rows(nil), do: []
@@ -329,7 +313,7 @@ defmodule DeckingCalc.Calculator do
     border_count =
       case picture_frame do
         nil -> 0
-        %{long_side_count: lc, short_side_count: sc} -> lc + sc
+        %{cap_count: cc} -> cc
       end
 
     {band_count, segments} =

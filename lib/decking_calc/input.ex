@@ -12,8 +12,7 @@ defmodule DeckingCalc.Input do
   @type picture_frame ::
           nil
           | %{
-              border_boards: pos_integer(),
-              mitre: boolean()
+              border_boards: pos_integer()
             }
 
   @type transverse_frame ::
@@ -121,7 +120,6 @@ defmodule DeckingCalc.Input do
       "min_reuse" => 300,
       "picture_frame_enabled" => false,
       "picture_frame_border_boards" => 1,
-      "picture_frame_mitre" => true,
       "transverse_frame_enabled" => false,
       "transverse_band_boards" => 1
     }
@@ -147,10 +145,7 @@ defmodule DeckingCalc.Input do
           base.picture_frame
 
         truthy?(Map.get(base, :picture_frame_enabled)) ->
-          %{
-            border_boards: Map.get(base, :picture_frame_border_boards, 1),
-            mitre: truthy?(Map.get(base, :picture_frame_mitre, true))
-          }
+          %{border_boards: Map.get(base, :picture_frame_border_boards, 1)}
 
         true ->
           nil
@@ -246,7 +241,7 @@ defmodule DeckingCalc.Input do
 
   defp cast(:picture_frame, %{} = pf) do
     with {:ok, n} <- cast(:pos_integer, Map.get(pf, :border_boards, 1)) do
-      {:ok, %{border_boards: n, mitre: truthy?(Map.get(pf, :mitre, true))}}
+      {:ok, %{border_boards: n}}
     end
   end
 

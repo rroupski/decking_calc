@@ -27,7 +27,6 @@ defmodule DeckingCalcWeb.CalculatorLive do
 
   defp assign_from_params(socket, params) do
     params = normalize_checkbox(params, "picture_frame_enabled")
-    params = normalize_checkbox(params, "picture_frame_mitre")
     params = normalize_checkbox(params, "transverse_frame_enabled")
 
     case Input.new(params) do
@@ -151,6 +150,10 @@ defmodule DeckingCalcWeb.CalculatorLive do
           />
 
           <h2 class="text-lg font-semibold pt-2">Picture frame</h2>
+          <p class="text-xs text-base-content/70 -mt-2">
+            Adds end-cap boards laid perpendicular to the field boards at each
+            end of the run, hiding the cut ends. No long-side borders.
+          </p>
           <label class="label cursor-pointer justify-start gap-3">
             <input type="hidden" name="calc[picture_frame_enabled]" value="false" />
             <input
@@ -160,25 +163,14 @@ defmodule DeckingCalcWeb.CalculatorLive do
               class="checkbox"
               checked={checked?(@form[:picture_frame_enabled].value)}
             />
-            <span class="label-text">Enable picture-frame border</span>
+            <span class="label-text">Enable picture-frame end caps</span>
           </label>
           <div class="grid grid-cols-2 gap-3">
             <.number_field
               field={@form[:picture_frame_border_boards]}
-              label="Border boards per side"
+              label="Cap boards per end"
               error={@errors[:picture_frame]}
             />
-            <label class="label cursor-pointer justify-start gap-3">
-              <input type="hidden" name="calc[picture_frame_mitre]" value="false" />
-              <input
-                type="checkbox"
-                name="calc[picture_frame_mitre]"
-                value="true"
-                class="checkbox"
-                checked={checked?(@form[:picture_frame_mitre].value)}
-              />
-              <span class="label-text">Mitred corners</span>
-            </label>
           </div>
 
           <h2 class="text-lg font-semibold pt-2">Transverse breaker frame</h2>
@@ -402,13 +394,13 @@ defmodule DeckingCalcWeb.CalculatorLive do
           stroke-width={@g.stroke}
         />
         
-    <!-- Picture-frame ring -->
+    <!-- Picture-frame end caps (only on sides perpendicular to board direction) -->
         <%= if @g.has_picture_frame do %>
           <rect
-            x={@g.inset}
-            y={@g.inset}
-            width={@g.view_w - 2 * @g.inset}
-            height={@g.view_h - 2 * @g.inset}
+            x={@g.inset_x}
+            y={@g.inset_y}
+            width={@g.view_w - 2 * @g.inset_x}
+            height={@g.view_h - 2 * @g.inset_y}
             class="fill-base-100 stroke-base-content"
             stroke-width={@g.stroke}
           />
@@ -460,9 +452,16 @@ defmodule DeckingCalcWeb.CalculatorLive do
         %{border_boards: n} -> n * input.board_width + n * input.gap
       end
 
-    # In the SVG, X = patio length, Y = patio width. Field rows always run
-    # along the configured `board_direction`. Breaker bands are orthogonal.
-    {rows, bands} = diagram_rows_and_bands(input, layout, result.transverse_frame, inset)
+    # End caps inset only the axis along which boards run; the perpendicular
+    # axis is unchanged.
+    {inset_x, inset_y} =
+      case input.board_direction do
+        :along_length -> {inset, 0}
+        :along_width -> {0, inset}
+      end
+
+    {rows, bands} =
+      diagram_rows_and_bands(input, layout, result.transverse_frame, inset_x, inset_y)
 
     caption =
       cond do
@@ -474,7 +473,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
             "#{tf.band_count} breaker band(s) of #{tf.band_thickness} mm"
 
         has_pf ->
-          "#{input.patio_length} × #{input.patio_width} mm — picture-frame border #{inset} mm wide"
+          "#{input.patio_length} × #{input.patio_width} mm — picture-frame end caps #{inset} mm thick"
 
         true ->
           "#{input.patio_length} × #{input.patio_width} mm"
@@ -488,6 +487,8 @@ defmodule DeckingCalcWeb.CalculatorLive do
       view_w: view_w,
       view_h: view_h,
       inset: inset,
+      inset_x: inset_x,
+      inset_y: inset_y,
       has_picture_frame: has_pf,
       rows: rows,
       bands: bands,
@@ -497,7 +498,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
     }
   end
 
-  defp diagram_rows_and_bands(input, layout, transverse_frame, inset) do
+  defp diagram_rows_and_bands(input, layout, transverse_frame, inset_x, inset_y) do
     bw = input.board_width
     gap = input.gap
     row_count = layout.row_count
@@ -507,7 +508,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
         rows =
           for i <- 1..max(row_count, 0) do
             h = if i == row_count, do: layout.last_row_width, else: bw
-            %{x: inset, y: inset + (i - 1) * (bw + gap), w: layout.field_length, h: h}
+            %{x: inset_x, y: inset_y + (i - 1) * (bw + gap), w: layout.field_length, h: h}
           end
 
         bands =
@@ -517,8 +518,8 @@ defmodule DeckingCalcWeb.CalculatorLive do
 
             %{band_count: bc, band_thickness: bt, segment_length: sl} when bc > 0 ->
               for d <- 1..bc do
-                x = inset + d * sl + (d - 1) * (bt + 2 * input.end_gap) + input.end_gap
-                %{x: x, y: inset, w: bt, h: layout.field_width}
+                x = inset_x + d * sl + (d - 1) * (bt + 2 * input.end_gap) + input.end_gap
+                %{x: x, y: inset_y, w: bt, h: layout.field_width}
               end
 
             _ ->
@@ -533,7 +534,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
         rows =
           for i <- 1..max(row_count, 0) do
             w = if i == row_count, do: layout.last_row_width, else: bw
-            %{x: inset + (i - 1) * (bw + gap), y: inset, w: w, h: layout.field_length}
+            %{x: inset_x + (i - 1) * (bw + gap), y: inset_y, w: w, h: layout.field_length}
           end
 
         # Transverse frame is not produced for along_width, but be defensive.
@@ -543,8 +544,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
 
   defp format_row_id({:field, i}), do: "field #{i}"
   defp format_row_id({:field, s, i}), do: "seg #{s} field #{i}"
-  defp format_row_id({:border_long, i}), do: "long border #{i}"
-  defp format_row_id({:border_short, i}), do: "short border #{i}"
+  defp format_row_id({:border_cap, i}), do: "end cap #{i}"
   defp format_row_id({:band, d, i}), do: "breaker #{d} board #{i}"
   defp format_row_id(other), do: inspect(other)
 
