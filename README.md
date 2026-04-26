@@ -94,6 +94,33 @@ An optional accent band of boards running perpendicular to the main field boards
 | `transverse_frame_enabled` | boolean | no | `false` | Whether to include a transverse band. |
 | `transverse_band_boards` | positive integer | no | `1` | Number of boards wide the transverse band is. |
 
+## Last-row width optimisation
+
+When the patio dimension on the rows axis does not divide evenly into whole
+board rows, the final row must be ripped to a non-standard width. The app
+detects this and surfaces two affordances in the results panel:
+
+- **Warning highlight** — the *Last-row width* stat card is highlighted in
+  amber whenever the last row differs from `board_width`, making the issue
+  immediately visible.
+- **Warning banner** — a banner below the stats reads
+  *"The final row is being ripped to X mm. Adjust the patio \<width|length\>
+  to the nearest full-board fit."* and contains an **Optimize width** (or
+  **Optimize length**) button.
+
+Clicking the button recalculates the controlling patio dimension (width when
+boards run along the length; length when boards run along the width) and
+updates the form in place. Two candidate dimensions are evaluated:
+
+1. **Shrink** — reduce to exactly fit the current row count with no leftover
+   margin: `row_count × board_width + (row_count − 1) × gap`.
+2. **Grow** — increase to fit one additional full-width row:
+   `shrink_to + board_width + gap`.
+
+The candidate closest to the original dimension is chosen, so the patio
+changes by the minimum amount necessary. After the adjustment the last-row
+width equals `board_width` and the banner disappears.
+
 ## Notes on assumptions
 
 - Boards run in one direction across the entire field; the opposite axis is
