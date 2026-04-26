@@ -93,6 +93,7 @@ An optional accent band of boards running perpendicular to the main field boards
 |---|---|---|---|---|
 | `transverse_frame_enabled` | boolean | no | `false` | Whether to include a transverse band. |
 | `transverse_band_boards` | positive integer | no | `1` | Number of boards wide the transverse band is. |
+| `transverse_max_segment_length` | positive integer | no | blank (auto) | Maximum length in mm of each field segment between breaker bands. When blank, the longest available stock board length is used as the cap. Setting a smaller value forces more breaker bands; setting a larger value may allow fewer. |
 
 ## Last-row width optimisation
 

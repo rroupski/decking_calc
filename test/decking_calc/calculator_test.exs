@@ -233,6 +233,57 @@ defmodule DeckingCalc.CalculatorTest do
       assert pf.band_count == pf.segments - 1
       assert pf.band_length == layout.field_width
     end
+
+    test "transverse_max_segment_length overrides stock cap to force more segments" do
+      # band_footprint = 150 + 2×3 = 156 mm.
+      # With max_len=4000 (auto): n=3 → segment_length = div(11800-2×156, 3) = 3829 ≤ 4000 ✓
+      # With max_len=3000: n=3 → 3829 > 3000 → n=4 → div(11800-3×156, 4) = 2833 ≤ 3000 ✓
+      input =
+        input!(%{
+          patio_length: 11_800,
+          patio_width: 3500,
+          board_width: 150,
+          gap: 5,
+          end_gap: 3,
+          stock_lengths: "3000, 3600, 4000",
+          board_direction: :along_length,
+          transverse_frame_enabled: true,
+          transverse_band_boards: 1,
+          transverse_max_segment_length: 3000
+        })
+
+      layout = Calculator.layout(input)
+      tf = Calculator.transverse_frame_plan(input, layout)
+
+      assert tf.segments == 4
+      assert tf.segment_length <= 3000
+      assert tf.band_count == 3
+    end
+
+    test "transverse_max_segment_length larger than stock cap can reduce segment count" do
+      # With max_len=6000: n=2 → div(11800-1×156, 2) = 5822 ≤ 6000 ✓
+      # Without override, max_stock=4000 forces n=3.
+      input =
+        input!(%{
+          patio_length: 11_800,
+          patio_width: 3500,
+          board_width: 150,
+          gap: 5,
+          end_gap: 3,
+          stock_lengths: "3000, 3600, 4000",
+          board_direction: :along_length,
+          transverse_frame_enabled: true,
+          transverse_band_boards: 1,
+          transverse_max_segment_length: 6000
+        })
+
+      layout = Calculator.layout(input)
+      tf = Calculator.transverse_frame_plan(input, layout)
+
+      assert tf.segments == 2
+      assert tf.segment_length <= 6000
+      assert tf.band_count == 1
+    end
   end
 
   describe "compute/1 with transverse frame" do

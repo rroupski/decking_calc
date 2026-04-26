@@ -32,6 +32,37 @@ defmodule DeckingCalc.InputTest do
     assert input.stock_lengths == [4800, 3600]
   end
 
+  describe "transverse_max_segment_length" do
+    test "is nil by default" do
+      assert {:ok, input} = Input.new(Input.default_params())
+      assert input.transverse_max_segment_length == nil
+    end
+
+    test "parses a positive integer" do
+      params = Map.put(Input.default_params(), "transverse_max_segment_length", "3000")
+      assert {:ok, input} = Input.new(params)
+      assert input.transverse_max_segment_length == 3000
+    end
+
+    test "treats blank string as nil" do
+      params = Map.put(Input.default_params(), "transverse_max_segment_length", "")
+      assert {:ok, input} = Input.new(params)
+      assert input.transverse_max_segment_length == nil
+    end
+
+    test "rejects zero" do
+      params = Map.put(Input.default_params(), "transverse_max_segment_length", "0")
+      assert {:error, errors} = Input.new(params)
+      assert errors[:transverse_max_segment_length]
+    end
+
+    test "rejects non-numeric input" do
+      params = Map.put(Input.default_params(), "transverse_max_segment_length", "lots")
+      assert {:error, errors} = Input.new(params)
+      assert errors[:transverse_max_segment_length]
+    end
+  end
+
   test "ignores Phoenix bookkeeping keys (_unused_*, _target, _csrf_token)" do
     params =
       Input.default_params()
