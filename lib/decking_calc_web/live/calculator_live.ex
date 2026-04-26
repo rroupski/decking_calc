@@ -81,49 +81,49 @@ defmodule DeckingCalcWeb.CalculatorLive do
           <h2 class="text-lg font-semibold">Patio</h2>
           <div class="grid grid-cols-2 gap-3">
             <.number_field
-              field={@form[:patio_length_mm]}
+              field={@form[:patio_length]}
               label="Length (mm)"
-              error={@errors[:patio_length_mm]}
+              error={@errors[:patio_length]}
             />
             <.number_field
-              field={@form[:patio_width_mm]}
+              field={@form[:patio_width]}
               label="Width (mm)"
-              error={@errors[:patio_width_mm]}
+              error={@errors[:patio_width]}
             />
           </div>
 
           <h2 class="text-lg font-semibold pt-2">Boards</h2>
           <div class="grid grid-cols-2 gap-3">
             <.number_field
-              field={@form[:board_width_mm]}
+              field={@form[:board_width]}
               label="Board width (mm)"
-              error={@errors[:board_width_mm]}
+              error={@errors[:board_width]}
             />
             <.number_field
-              field={@form[:board_thickness_mm]}
+              field={@form[:board_thickness]}
               label="Thickness (mm)"
-              error={@errors[:board_thickness_mm]}
+              error={@errors[:board_thickness]}
             />
           </div>
           <.text_field
-            field={@form[:stock_lengths_mm]}
+            field={@form[:stock_lengths]}
             label="Stock lengths (mm, comma separated)"
-            error={@errors[:stock_lengths_mm]}
+            error={@errors[:stock_lengths]}
           />
           <div class="grid grid-cols-2 gap-3">
-            <.number_field field={@form[:gap_mm]} label="Side gap (mm)" error={@errors[:gap_mm]} />
+            <.number_field field={@form[:gap]} label="Side gap (mm)" error={@errors[:gap]} />
             <.number_field
-              field={@form[:end_gap_mm]}
+              field={@form[:end_gap]}
               label="End butt gap (mm)"
-              error={@errors[:end_gap_mm]}
+              error={@errors[:end_gap]}
             />
           </div>
           <div class="grid grid-cols-2 gap-3">
-            <.number_field field={@form[:kerf_mm]} label="Kerf (mm)" error={@errors[:kerf_mm]} />
+            <.number_field field={@form[:kerf]} label="Kerf (mm)" error={@errors[:kerf]} />
             <.number_field
-              field={@form[:min_reuse_mm]}
+              field={@form[:min_reuse]}
               label="Min. reusable offcut (mm)"
-              error={@errors[:min_reuse_mm]}
+              error={@errors[:min_reuse]}
             />
           </div>
 
@@ -144,9 +144,9 @@ defmodule DeckingCalcWeb.CalculatorLive do
 
           <h2 class="text-lg font-semibold pt-2">Joists</h2>
           <.number_field
-            field={@form[:max_joist_spacing_mm]}
+            field={@form[:max_joist_spacing]}
             label="Max joist spacing (mm)"
-            error={@errors[:max_joist_spacing_mm]}
+            error={@errors[:max_joist_spacing]}
           />
 
           <h2 class="text-lg font-semibold pt-2">Picture frame</h2>
@@ -252,16 +252,16 @@ defmodule DeckingCalcWeb.CalculatorLive do
       <h2 class="text-lg font-semibold">Summary</h2>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <.stat label="Field rows" value={@result.layout.row_count} />
-        <.stat label="Row length" value={"#{fmt_mm(@result.layout.row_length_mm)}"} />
-        <.stat label="Last-row width" value={"#{@result.layout.last_row_width_mm} mm"} />
+        <.stat label="Row length" value={"#{fmt_length(@result.layout.row_length)}"} />
+        <.stat label="Last-row width" value={"#{@result.layout.last_row_width} mm"} />
         <.stat label="Joists" value={@result.joists.joist_count} />
         <.stat
           label="Joist spacing"
-          value={"#{@result.joists.actual_spacing_mm} mm (≤ #{@result.input.max_joist_spacing_mm})"}
+          value={"#{@result.joists.actual_spacing} mm (≤ #{@result.input.max_joist_spacing})"}
         />
         <.stat
           label="Waste"
-          value={"#{fmt_mm(@result.summary.total_waste_mm)} (#{@result.summary.waste_pct}%)"}
+          value={"#{fmt_length(@result.summary.total_waste)} (#{@result.summary.waste_pct}%)"}
         />
       </div>
 
@@ -269,7 +269,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
       <ul class="list-disc list-inside text-sm">
         <%= for {len, n} <- Enum.sort_by(@result.summary.boards_by_stock, fn {l, _} -> -l end) do %>
           <li>
-            <strong>{n}</strong> × <strong>{fmt_mm(len)}</strong> boards
+            <strong>{n}</strong> × <strong>{fmt_length(len)}</strong> boards
           </li>
         <% end %>
         <%= if @result.summary.boards_by_stock == %{} do %>
@@ -291,7 +291,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
             <%= for row <- @result.cut_list.rows do %>
               <tr>
                 <td class="font-mono">{format_row_id(row.row_id)}</td>
-                <td class="text-right">{fmt_mm(row.row_length_mm)}</td>
+                <td class="text-right">{fmt_length(row.row_length)}</td>
                 <td>
                   <%= for cut <- row.cuts do %>
                     <span class="badge badge-outline badge-sm mr-1 mb-1">
@@ -310,10 +310,10 @@ defmodule DeckingCalcWeb.CalculatorLive do
         </table>
       </div>
 
-      <%= if @result.cut_list.unused_offcuts_mm != [] do %>
+      <%= if @result.cut_list.unused_offcuts != [] do %>
         <p class="text-xs text-base-content/70">
           Remaining usable offcuts: {Enum.map_join(
-            @result.cut_list.unused_offcuts_mm,
+            @result.cut_list.unused_offcuts,
             ", ",
             &"#{&1} mm"
           )}
@@ -340,15 +340,15 @@ defmodule DeckingCalcWeb.CalculatorLive do
   defp format_row_id({:border_short, i}), do: "short border #{i}"
   defp format_row_id(other), do: inspect(other)
 
-  defp format_cut(%{source: :stock, stock_length_mm: sl, length_mm: l}) do
+  defp format_cut(%{source: :stock, stock_length: sl, length: l}) do
     "stock #{sl} → #{l} mm"
   end
 
-  defp format_cut(%{source: :offcut, length_mm: l}) do
+  defp format_cut(%{source: :offcut, length: l}) do
     "offcut → #{l} mm"
   end
 
-  defp fmt_mm(mm) when is_integer(mm) do
+  defp fmt_length(mm) when is_integer(mm) do
     if mm >= 1000 do
       whole = div(mm, 1000)
       rem = rem(mm, 1000)
@@ -358,7 +358,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
     end
   end
 
-  defp fmt_mm(other), do: to_string(other)
+  defp fmt_length(other), do: to_string(other)
 
   defp pad(n) when n < 10, do: "00#{n}"
   defp pad(n) when n < 100, do: "0#{n}"

@@ -15,25 +15,25 @@ defmodule DeckingCalc.Calculator do
 
   @type layout :: %{
           direction: Input.direction(),
-          row_length_mm: pos_integer(),
-          rows_span_mm: pos_integer(),
+          row_length: pos_integer(),
+          rows_span: pos_integer(),
           row_count: pos_integer(),
-          last_row_width_mm: pos_integer(),
-          field_length_mm: pos_integer(),
-          field_width_mm: pos_integer()
+          last_row_width: pos_integer(),
+          field_length: pos_integer(),
+          field_width: pos_integer()
         }
 
   @type joists :: %{
           joist_count: pos_integer(),
-          actual_spacing_mm: non_neg_integer(),
-          span_mm: pos_integer()
+          actual_spacing: non_neg_integer(),
+          span: pos_integer()
         }
 
   @type picture_frame_plan :: %{
           border_boards: pos_integer(),
           mitre: boolean(),
-          long_side_length_mm: pos_integer(),
-          short_side_length_mm: pos_integer(),
+          long_side_length: pos_integer(),
+          short_side_length: pos_integer(),
           long_side_count: pos_integer(),
           short_side_count: pos_integer()
         }
@@ -45,9 +45,9 @@ defmodule DeckingCalc.Calculator do
           picture_frame: picture_frame_plan() | nil,
           cut_list: CutList.plan(),
           summary: %{
-            total_purchased_mm: non_neg_integer(),
-            total_used_mm: non_neg_integer(),
-            total_waste_mm: non_neg_integer(),
+            total_purchased: non_neg_integer(),
+            total_used: non_neg_integer(),
+            total_waste: non_neg_integer(),
             waste_pct: float(),
             boards_by_stock: %{pos_integer() => non_neg_integer()},
             field_rows: pos_integer(),
@@ -68,9 +68,9 @@ defmodule DeckingCalc.Calculator do
 
     cut_list =
       CutList.plan(rows,
-        stock_lengths_mm: input.stock_lengths_mm,
-        kerf_mm: input.kerf_mm,
-        min_reuse_mm: input.min_reuse_mm
+        stock_lengths: input.stock_lengths,
+        kerf: input.kerf,
+        min_reuse: input.min_reuse
       )
 
     summary = build_summary(cut_list, layout, picture_frame)
@@ -96,47 +96,47 @@ defmodule DeckingCalc.Calculator do
     border_inset =
       case input.picture_frame do
         nil -> 0
-        %{border_boards: n} -> n * input.board_width_mm + n * input.gap_mm
+        %{border_boards: n} -> n * input.board_width + n * input.gap
       end
 
-    field_length_mm = max(long - 2 * border_inset, 0)
-    field_width_mm = max(short - 2 * border_inset, 0)
+    field_length = max(long - 2 * border_inset, 0)
+    field_width = max(short - 2 * border_inset, 0)
 
-    pitch = input.board_width_mm + input.gap_mm
-    # Number of full board rows that fit in field_width_mm, accounting for the
+    pitch = input.board_width + input.gap
+    # Number of full board rows that fit in field_width, accounting for the
     # trailing gap that is *not* needed after the last board.
     row_count =
-      if field_width_mm <= 0 or pitch == 0 do
+      if field_width <= 0 or pitch == 0 do
         0
       else
-        div(field_width_mm + input.gap_mm, pitch)
+        div(field_width + input.gap, pitch)
       end
 
     used_width =
       if row_count == 0,
         do: 0,
-        else: row_count * input.board_width_mm + (row_count - 1) * input.gap_mm
+        else: row_count * input.board_width + (row_count - 1) * input.gap
 
-    margin = field_width_mm - used_width
+    margin = field_width - used_width
 
     # The last row is a full-width board unless the remaining space
     # exceeds one trailing gap; any surplus beyond that gap is absorbed by
     # ripping the final row wider to keep the field flush to the border.
-    last_row_width_mm =
+    last_row_width =
       cond do
         row_count == 0 -> 0
-        margin <= input.gap_mm -> input.board_width_mm
-        true -> input.board_width_mm + (margin - input.gap_mm)
+        margin <= input.gap -> input.board_width
+        true -> input.board_width + (margin - input.gap)
       end
 
     %{
       direction: input.board_direction,
-      row_length_mm: field_length_mm,
-      rows_span_mm: field_width_mm,
+      row_length: field_length,
+      rows_span: field_width,
       row_count: row_count,
-      last_row_width_mm: last_row_width_mm,
-      field_length_mm: field_length_mm,
-      field_width_mm: field_width_mm
+      last_row_width: last_row_width,
+      field_length: field_length,
+      field_width: field_width
     }
   end
 
@@ -148,23 +148,23 @@ defmodule DeckingCalc.Calculator do
   def joists(%Input{} = input, layout) do
     {_long, short} = long_short(input)
     span = short
-    max_spacing = input.max_joist_spacing_mm
+    max_spacing = input.max_joist_spacing
 
     joist_count =
       if span <= 0 do
         0
       else
-        ceil_div(layout.field_length_mm, max_spacing) + 1
+        ceil_div(layout.field_length, max_spacing) + 1
       end
 
     actual_spacing =
       if joist_count > 1 do
-        div(layout.field_length_mm, joist_count - 1)
+        div(layout.field_length, joist_count - 1)
       else
         0
       end
 
-    %{joist_count: joist_count, actual_spacing_mm: actual_spacing, span_mm: span}
+    %{joist_count: joist_count, actual_spacing: actual_spacing, span: span}
   end
 
   @doc """
@@ -179,7 +179,7 @@ defmodule DeckingCalc.Calculator do
     # For a mitre joint the corner boards span the full outer edge; for butt
     # joints the short sides fit between the long sides, so subtract twice
     # the border thickness (border_boards * board_width + gaps).
-    thickness = n * input.board_width_mm + max(n - 1, 0) * input.gap_mm
+    thickness = n * input.board_width + max(n - 1, 0) * input.gap
 
     {long_side_len, short_side_len} =
       if mitre do
@@ -191,8 +191,8 @@ defmodule DeckingCalc.Calculator do
     %{
       border_boards: n,
       mitre: mitre,
-      long_side_length_mm: long_side_len,
-      short_side_length_mm: short_side_len,
+      long_side_length: long_side_len,
+      short_side_length: short_side_len,
       long_side_count: 2 * n,
       short_side_count: 2 * n
     }
@@ -202,7 +202,7 @@ defmodule DeckingCalc.Calculator do
           [{term(), pos_integer()}]
   defp build_rows(%{row_count: 0}, nil), do: []
 
-  defp build_rows(%{row_count: rc, row_length_mm: rl}, picture_frame) when rc > 0 do
+  defp build_rows(%{row_count: rc, row_length: rl}, picture_frame) when rc > 0 do
     field = for i <- 1..rc, do: {{:field, i}, rl}
 
     border =
@@ -212,9 +212,9 @@ defmodule DeckingCalc.Calculator do
 
         %{
           long_side_count: lc,
-          long_side_length_mm: ll,
+          long_side_length: ll,
           short_side_count: sc,
-          short_side_length_mm: sl
+          short_side_length: sl
         } ->
           long = for i <- 1..lc, do: {{:border_long, i}, ll}
           short = for i <- 1..sc, do: {{:border_short, i}, sl}
@@ -231,9 +231,9 @@ defmodule DeckingCalc.Calculator do
 
       %{
         long_side_count: lc,
-        long_side_length_mm: ll,
+        long_side_length: ll,
         short_side_count: sc,
-        short_side_length_mm: sl
+        short_side_length: sl
       } ->
         long = for i <- 1..lc, do: {{:border_long, i}, ll}
         short = for i <- 1..sc, do: {{:border_short, i}, sl}
@@ -242,9 +242,9 @@ defmodule DeckingCalc.Calculator do
   end
 
   defp build_summary(cut_list, layout, picture_frame) do
-    purchased = cut_list.total_purchased_mm
-    used = cut_list.total_used_mm
-    waste = cut_list.total_waste_mm
+    purchased = cut_list.total_purchased
+    used = cut_list.total_used
+    waste = cut_list.total_waste
 
     waste_pct =
       if purchased > 0 do
@@ -260,9 +260,9 @@ defmodule DeckingCalc.Calculator do
       end
 
     %{
-      total_purchased_mm: purchased,
-      total_used_mm: used,
-      total_waste_mm: waste,
+      total_purchased: purchased,
+      total_used: used,
+      total_waste: waste,
       waste_pct: waste_pct,
       boards_by_stock: cut_list.stock_usage,
       field_rows: layout.row_count,
@@ -270,19 +270,19 @@ defmodule DeckingCalc.Calculator do
     }
   end
 
-  # Returns `{long_axis_mm, short_axis_mm}` where `long_axis_mm` is the axis
+  # Returns `{long_axis, short_axis}` where `long_axis` is the axis
   # the boards run along. Boards running `:along_length` means their length
-  # equals `patio_length_mm`; otherwise they run along the width.
+  # equals `patio_length`; otherwise they run along the width.
   defp long_short(%Input{
-         patio_length_mm: l,
-         patio_width_mm: w,
+         patio_length: l,
+         patio_width: w,
          board_direction: :along_length
        }),
        do: {l, w}
 
   defp long_short(%Input{
-         patio_length_mm: l,
-         patio_width_mm: w,
+         patio_length: l,
+         patio_width: w,
          board_direction: :along_width
        }),
        do: {w, l}

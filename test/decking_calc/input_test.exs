@@ -5,8 +5,8 @@ defmodule DeckingCalc.InputTest do
 
   test "builds from default params" do
     assert {:ok, input} = Input.new(Input.default_params())
-    assert input.patio_length_mm == 4000
-    assert input.stock_lengths_mm == [5400, 4800, 3600]
+    assert input.patio_length == 4000
+    assert input.stock_lengths == [5400, 4800, 3600]
     assert input.picture_frame == nil
   end
 
@@ -22,14 +22,14 @@ defmodule DeckingCalc.InputTest do
   end
 
   test "reports per-field errors" do
-    params = Map.put(Input.default_params(), "patio_length_mm", "not-a-number")
+    params = Map.put(Input.default_params(), "patio_length", "not-a-number")
     assert {:error, errors} = Input.new(params)
-    assert errors[:patio_length_mm]
+    assert errors[:patio_length]
   end
 
   test "parses stock lengths from comma-separated string" do
-    params = Map.put(Input.default_params(), "stock_lengths_mm", "3600, 4800")
+    params = Map.put(Input.default_params(), "stock_lengths", "3600, 4800")
     assert {:ok, input} = Input.new(params)
-    assert input.stock_lengths_mm == [4800, 3600]
+    assert input.stock_lengths == [4800, 3600]
   end
 end

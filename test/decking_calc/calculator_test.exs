@@ -17,13 +17,13 @@ defmodule DeckingCalc.CalculatorTest do
       # (3000 + 5) / 150 = 20 rows (each row fits pitch 150), with the final
       # trailing gap not required after the last board.
       input =
-        input!(%{patio_length_mm: 4000, patio_width_mm: 3000, board_width_mm: 145, gap_mm: 5})
+        input!(%{patio_length: 4000, patio_width: 3000, board_width: 145, gap: 5})
 
       layout = Calculator.layout(input)
 
       assert layout.row_count == 20
-      assert layout.row_length_mm == 4000
-      assert layout.last_row_width_mm == 145
+      assert layout.row_length == 4000
+      assert layout.last_row_width == 145
     end
 
     test "narrows the last row when width is not a multiple of the pitch" do
@@ -36,23 +36,23 @@ defmodule DeckingCalc.CalculatorTest do
       # the remainder gap (145 + 15 = 160 is wrong; the correct intent is to
       # rip the final board). Verify the implementation's actual output.
       input =
-        input!(%{patio_length_mm: 4000, patio_width_mm: 3010, board_width_mm: 145, gap_mm: 5})
+        input!(%{patio_length: 4000, patio_width: 3010, board_width: 145, gap: 5})
 
       layout = Calculator.layout(input)
 
       # 20 full rows fit (using pitch=150 and the trailing-gap rule), leaving
       # 10mm which will be absorbed by narrowing the last row.
       assert layout.row_count == 20
-      assert layout.last_row_width_mm in 145..160
+      assert layout.last_row_width in 145..160
     end
 
     test "subtracts a picture-frame border from the field area" do
       input =
         input!(%{
-          patio_length_mm: 4000,
-          patio_width_mm: 3000,
-          board_width_mm: 145,
-          gap_mm: 5,
+          patio_length: 4000,
+          patio_width: 3000,
+          board_width: 145,
+          gap: 5,
           picture_frame_enabled: true,
           picture_frame_border_boards: 1,
           picture_frame_mitre: true
@@ -61,21 +61,21 @@ defmodule DeckingCalc.CalculatorTest do
       layout = Calculator.layout(input)
 
       # Inset on each side = 145 + 5 = 150 (1 border board + gap before field).
-      assert layout.field_length_mm == 4000 - 2 * 150
-      assert layout.field_width_mm == 3000 - 2 * 150
+      assert layout.field_length == 4000 - 2 * 150
+      assert layout.field_width == 3000 - 2 * 150
     end
   end
 
   describe "joists/2" do
     test "joist count covers the span with <= max_spacing" do
-      input = input!(%{patio_length_mm: 4000, patio_width_mm: 3000, max_joist_spacing_mm: 400})
+      input = input!(%{patio_length: 4000, patio_width: 3000, max_joist_spacing: 400})
       layout = Calculator.layout(input)
       joists = Calculator.joists(input, layout)
 
       # field_length = patio length (4000). ceil(4000/400)+1 = 11 joists.
       assert joists.joist_count == 11
-      assert joists.actual_spacing_mm == div(4000, 10)
-      assert joists.actual_spacing_mm <= 400
+      assert joists.actual_spacing == div(4000, 10)
+      assert joists.actual_spacing <= 400
     end
   end
 
@@ -87,16 +87,16 @@ defmodule DeckingCalc.CalculatorTest do
     test "mitred corners: short sides span full outer edge" do
       input =
         input!(%{
-          patio_length_mm: 4000,
-          patio_width_mm: 3000,
+          patio_length: 4000,
+          patio_width: 3000,
           picture_frame_enabled: true,
           picture_frame_border_boards: 2,
           picture_frame_mitre: true
         })
 
       pf = Calculator.picture_frame_plan(input)
-      assert pf.long_side_length_mm == 4000
-      assert pf.short_side_length_mm == 3000
+      assert pf.long_side_length == 4000
+      assert pf.short_side_length == 3000
       assert pf.long_side_count == 4
       assert pf.short_side_count == 4
     end
@@ -104,10 +104,10 @@ defmodule DeckingCalc.CalculatorTest do
     test "butt corners: short sides fit between long sides" do
       input =
         input!(%{
-          patio_length_mm: 4000,
-          patio_width_mm: 3000,
-          board_width_mm: 145,
-          gap_mm: 5,
+          patio_length: 4000,
+          patio_width: 3000,
+          board_width: 145,
+          gap: 5,
           picture_frame_enabled: true,
           picture_frame_border_boards: 1,
           picture_frame_mitre: false
@@ -115,8 +115,8 @@ defmodule DeckingCalc.CalculatorTest do
 
       pf = Calculator.picture_frame_plan(input)
       # thickness = 1 * 145 + 0 = 145. short = 3000 - 2*145 = 2710.
-      assert pf.short_side_length_mm == 2710
-      assert pf.long_side_length_mm == 4000
+      assert pf.short_side_length == 2710
+      assert pf.long_side_length == 4000
     end
   end
 
@@ -125,8 +125,8 @@ defmodule DeckingCalc.CalculatorTest do
       input = input!()
       result = Calculator.compute(input)
 
-      assert result.summary.total_purchased_mm ==
-               result.summary.total_used_mm + result.summary.total_waste_mm
+      assert result.summary.total_purchased ==
+               result.summary.total_used + result.summary.total_waste
 
       assert result.summary.field_rows == result.layout.row_count
       assert is_float(result.summary.waste_pct)

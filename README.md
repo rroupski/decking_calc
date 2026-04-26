@@ -47,6 +47,6 @@ LiveView process.
   patio. Joist count is `ceil(span / max_spacing) + 1`.
 - Picture-frame corners are either mitred (all four sides span the outer
   edge) or butt-jointed (short sides fit between the long sides).
-- Offcuts shorter than `min_reuse_mm` are treated as waste.
+- Offcuts shorter than `min_reuse` are treated as waste.
 - Kerf loss is applied once per actual cut (no kerf is deducted when a piece
   is used to its full length).

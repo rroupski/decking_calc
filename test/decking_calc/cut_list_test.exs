@@ -8,16 +8,16 @@ defmodule DeckingCalc.CutListTest do
       plan =
         CutList.plan(
           [{{:field, 1}, 4000}, {{:field, 2}, 4000}],
-          stock_lengths_mm: [3600, 4800, 5400],
-          kerf_mm: 3,
-          min_reuse_mm: 300
+          stock_lengths: [3600, 4800, 5400],
+          kerf: 3,
+          min_reuse: 300
         )
 
       # Two rows of 4000mm: smallest stock >= 4000 is 4800. Expect 2 x 4800.
       assert plan.stock_usage == %{4800 => 2}
-      assert plan.total_purchased_mm == 9600
-      assert plan.total_used_mm == 8000
-      assert plan.total_waste_mm == 1600
+      assert plan.total_purchased == 9600
+      assert plan.total_used == 8000
+      assert plan.total_waste == 1600
     end
 
     test "carries usable offcuts into later rows" do
@@ -29,15 +29,15 @@ defmodule DeckingCalc.CutListTest do
       plan =
         CutList.plan(
           [{{:field, 1}, 5000}, {{:field, 2}, 600}],
-          stock_lengths_mm: [3600, 5400],
-          kerf_mm: 3,
-          min_reuse_mm: 300
+          stock_lengths: [3600, 5400],
+          kerf: 3,
+          min_reuse: 300
         )
 
       assert plan.stock_usage == %{5400 => 1, 3600 => 1}
       # Row 2 offcut (2997) is saved as usable.
-      assert 2997 in plan.unused_offcuts_mm
-      assert plan.total_waste_mm == 5400 + 3600 - 5000 - 600
+      assert 2997 in plan.unused_offcuts
+      assert plan.total_waste == 5400 + 3600 - 5000 - 600
     end
 
     test "reuses a fitting offcut before buying a new board" do
@@ -47,30 +47,30 @@ defmodule DeckingCalc.CutListTest do
       plan =
         CutList.plan(
           [{{:field, 1}, 5000}, {{:field, 2}, 3000}, {{:field, 3}, 500}],
-          stock_lengths_mm: [3600, 5400],
-          kerf_mm: 3,
-          min_reuse_mm: 300
+          stock_lengths: [3600, 5400],
+          kerf: 3,
+          min_reuse: 300
         )
 
       # Only two boards bought: one 5400 and one 3600. The 500mm row comes
       # from an offcut.
       assert plan.stock_usage == %{5400 => 1, 3600 => 1}
 
-      row_500 = Enum.find(plan.rows, &(&1.row_length_mm == 500))
-      assert [%{source: :offcut, length_mm: 500}] = row_500.cuts
+      row_500 = Enum.find(plan.rows, &(&1.row_length == 500))
+      assert [%{source: :offcut, length: 500}] = row_500.cuts
     end
 
     test "splits a row across multiple boards when no single stock fits" do
       # Row of 7000mm, stock options 3600/4800. Needs two boards.
       plan =
         CutList.plan([{{:field, 1}, 7000}],
-          stock_lengths_mm: [3600, 4800],
-          kerf_mm: 3,
-          min_reuse_mm: 300
+          stock_lengths: [3600, 4800],
+          kerf: 3,
+          min_reuse: 300
         )
 
       row = hd(plan.rows)
-      assert Enum.sum(Enum.map(row.cuts, & &1.length_mm)) == 7000
+      assert Enum.sum(Enum.map(row.cuts, & &1.length)) == 7000
       assert length(row.cuts) == 2
     end
 
@@ -79,9 +79,9 @@ defmodule DeckingCalc.CutListTest do
 
       plan =
         CutList.plan(rows,
-          stock_lengths_mm: [3600, 4800],
-          kerf_mm: 3,
-          min_reuse_mm: 300
+          stock_lengths: [3600, 4800],
+          kerf: 3,
+          min_reuse: 300
         )
 
       ids = Enum.map(plan.rows, & &1.row_id)
@@ -92,13 +92,13 @@ defmodule DeckingCalc.CutListTest do
       # Row exactly equal to stock length -> no offcut, no kerf lost.
       plan =
         CutList.plan([{{:field, 1}, 3600}],
-          stock_lengths_mm: [3600],
-          kerf_mm: 3,
-          min_reuse_mm: 300
+          stock_lengths: [3600],
+          kerf: 3,
+          min_reuse: 300
         )
 
-      assert plan.total_waste_mm == 0
-      assert plan.unused_offcuts_mm == []
+      assert plan.total_waste == 0
+      assert plan.unused_offcuts == []
     end
   end
 end

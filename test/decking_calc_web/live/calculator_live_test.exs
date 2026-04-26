@@ -16,7 +16,7 @@ defmodule DeckingCalcWeb.CalculatorLiveTest do
 
     html =
       view
-      |> form("form", calc: %{"patio_length_mm" => "6000", "patio_width_mm" => "4500"})
+      |> form("form", calc: %{"patio_length" => "6000", "patio_width" => "4500"})
       |> render_change()
 
     assert html =~ "Field rows"
