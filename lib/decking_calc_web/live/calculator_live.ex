@@ -25,6 +25,25 @@ defmodule DeckingCalcWeb.CalculatorLive do
     {:noreply, assign_from_params(socket, Input.default_params())}
   end
 
+  def handle_event("optimize_width", _params, socket) do
+    result = socket.assigns.result
+    params = socket.assigns.params
+
+    if result && result.layout.row_count > 0 do
+      optimal_short_axis = optimized_short_axis(result)
+
+      updated_params =
+        case result.input.board_direction do
+          :along_length -> Map.put(params, "patio_width", optimal_short_axis)
+          :along_width -> Map.put(params, "patio_length", optimal_short_axis)
+        end
+
+      {:noreply, assign_from_params(socket, updated_params)}
+    else
+      {:noreply, socket}
+    end
+  end
+
   defp assign_from_params(socket, params) do
     params = normalize_checkbox(params, "picture_frame_enabled")
     params = normalize_checkbox(params, "transverse_frame_enabled")
@@ -274,7 +293,14 @@ defmodule DeckingCalcWeb.CalculatorLive do
           label="Row length"
           value={"#{fmt_length(field_row_length(@result))}"}
         />
-        <.stat label="Last-row width" value={"#{@result.layout.last_row_width} mm"} />
+        <.stat
+          label="Last-row width"
+          value={"#{@result.layout.last_row_width} mm"}
+          highlight={
+            @result.layout.last_row_width != @result.input.board_width and
+              @result.layout.row_count > 0
+          }
+        />
         <.stat label="Joists" value={@result.joists.joist_count} />
         <.stat
           label="Joist spacing"
@@ -295,6 +321,24 @@ defmodule DeckingCalcWeb.CalculatorLive do
           />
         <% end %>
       </div>
+
+      <%= if @result.layout.last_row_width != @result.input.board_width and
+            @result.layout.row_count > 0 do %>
+        <div class="flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm">
+          <.icon name="hero-wrench-screwdriver" class="w-4 h-4 shrink-0 text-warning" />
+          <span class="text-base-content/80">
+            The final row is being ripped to <strong>{@result.layout.last_row_width} mm</strong>.
+            Adjust the patio {optimize_axis_label(@result)} to the nearest full-board fit.
+          </span>
+          <button
+            type="button"
+            phx-click="optimize_width"
+            class="btn btn-warning btn-xs ml-auto shrink-0"
+          >
+            Optimize {optimize_axis_label(@result)}
+          </button>
+        </div>
+      <% end %>
 
       <h3 class="font-semibold">Layout</h3>
       <.diagram result={@result} />
@@ -359,12 +403,13 @@ defmodule DeckingCalcWeb.CalculatorLive do
 
   attr :label, :string, required: true
   attr :value, :any, required: true
+  attr :highlight, :boolean, default: false
 
   defp stat(assigns) do
     ~H"""
-    <div class="stat bg-base-100 rounded-lg p-3">
+    <div class={["stat bg-base-100 rounded-lg p-3", @highlight && "ring-1 ring-warning/40"]}>
       <div class="stat-title text-xs">{@label}</div>
-      <div class="stat-value text-lg">{@value}</div>
+      <div class={["stat-value text-lg", @highlight && "text-warning"]}>{@value}</div>
     </div>
     """
   end
@@ -574,6 +619,26 @@ defmodule DeckingCalcWeb.CalculatorLive do
   defp pad(n) when n < 10, do: "00#{n}"
   defp pad(n) when n < 100, do: "0#{n}"
   defp pad(n), do: "#{n}"
+
+  # Returns the nearest patio dimension (on the rows axis) that produces a
+  # whole-board last row. Two candidates are considered:
+  #   shrink_to: exact fit for the current row count (no trailing margin)
+  #   grow_to:   exact fit for row_count + 1 (adds one more full-width row)
+  # The one closer to the current dimension is chosen.
+  defp optimized_short_axis(%{input: input, layout: layout}) do
+    shrink_to = layout.row_count * input.board_width + (layout.row_count - 1) * input.gap
+    grow_to = shrink_to + input.board_width + input.gap
+    current = layout.rows_span
+
+    if current - shrink_to <= grow_to - current do
+      shrink_to
+    else
+      grow_to
+    end
+  end
+
+  defp optimize_axis_label(%{input: %{board_direction: :along_length}}), do: "width"
+  defp optimize_axis_label(%{input: %{board_direction: :along_width}}), do: "length"
 
   defp checked?(true), do: true
   defp checked?("true"), do: true
