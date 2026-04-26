@@ -146,4 +146,87 @@ defmodule DeckingCalc.CalculatorTest do
       assert result.summary.border_boards == 4
     end
   end
+
+  describe "transverse_frame_plan/2" do
+    test "returns nil when not configured" do
+      assert Calculator.transverse_frame_plan(input!(), Calculator.layout(input!())) == nil
+    end
+
+    test "returns nil when field already fits in stock" do
+      input =
+        input!(%{
+          patio_length: 4000,
+          stock_lengths: "4000, 6000",
+          transverse_frame_enabled: true,
+          transverse_band_boards: 1
+        })
+
+      assert Calculator.transverse_frame_plan(input, Calculator.layout(input)) == nil
+    end
+
+    test "returns nil for along_width even when enabled" do
+      input =
+        input!(%{
+          patio_length: 12_000,
+          patio_width: 3500,
+          board_direction: :along_width,
+          transverse_frame_enabled: true,
+          transverse_band_boards: 1
+        })
+
+      assert Calculator.transverse_frame_plan(input, Calculator.layout(input)) == nil
+    end
+
+    test "derives the smallest segment count that fits within stock" do
+      # 11800 / 4000 max stock => need at least 3 segments (each ~3933mm).
+      input =
+        input!(%{
+          patio_length: 11_800,
+          patio_width: 3500,
+          board_width: 150,
+          gap: 5,
+          end_gap: 3,
+          stock_lengths: "3000, 3600, 4000",
+          board_direction: :along_length,
+          transverse_frame_enabled: true,
+          transverse_band_boards: 1
+        })
+
+      layout = Calculator.layout(input)
+      pf = Calculator.transverse_frame_plan(input, layout)
+
+      assert pf.segments >= 3
+      assert pf.segment_length <= 4000
+      assert pf.band_count == pf.segments - 1
+      assert pf.band_length == layout.field_width
+    end
+  end
+
+  describe "compute/1 with transverse frame" do
+    test "replaces full-length field rows with segmented field rows + breaker bands" do
+      input =
+        input!(%{
+          patio_length: 11_800,
+          patio_width: 3500,
+          board_width: 150,
+          stock_lengths: "3000, 3600, 4000",
+          board_direction: :along_length,
+          transverse_frame_enabled: true,
+          transverse_band_boards: 1
+        })
+
+      result = Calculator.compute(input)
+      tf = result.transverse_frame
+
+      seg_rows = Enum.filter(result.cut_list.rows, &match?({:field, _, _}, &1.row_id))
+      band_rows = Enum.filter(result.cut_list.rows, &match?({:band, _, _}, &1.row_id))
+
+      assert length(seg_rows) == result.layout.row_count * tf.segments
+      assert length(band_rows) == tf.band_count * tf.band_boards
+      assert Enum.all?(seg_rows, &(&1.row_length == tf.segment_length))
+      assert Enum.all?(band_rows, &(&1.row_length == tf.band_length))
+      assert result.summary.segments == tf.segments
+      assert result.summary.field_rows == result.layout.row_count * tf.segments
+    end
+  end
 end

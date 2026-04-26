@@ -7,7 +7,9 @@ defmodule DeckingCalc.Calculator do
     * field-board layout (number of rows across the short axis)
     * joist count and actual centre-to-centre spacing
     * an optional picture-frame border (perimeter boards)
-    * a waste-optimised cut list for field + border boards
+    * an optional transverse "breaker" frame that splits a long field run
+      into shorter segments so each field row fits within stock
+    * a waste-optimised cut list for field + border + band boards
     * a summary of materials purchased vs used
   """
 
@@ -38,11 +40,21 @@ defmodule DeckingCalc.Calculator do
           short_side_count: pos_integer()
         }
 
+  @type transverse_frame_plan :: %{
+          band_boards: pos_integer(),
+          segments: pos_integer(),
+          segment_length: pos_integer(),
+          band_thickness: pos_integer(),
+          band_length: pos_integer(),
+          band_count: non_neg_integer()
+        }
+
   @type result :: %{
           input: Input.t(),
           layout: layout(),
           joists: joists(),
           picture_frame: picture_frame_plan() | nil,
+          transverse_frame: transverse_frame_plan() | nil,
           cut_list: CutList.plan(),
           summary: %{
             total_purchased: non_neg_integer(),
@@ -51,7 +63,9 @@ defmodule DeckingCalc.Calculator do
             waste_pct: float(),
             boards_by_stock: %{pos_integer() => non_neg_integer()},
             field_rows: pos_integer(),
-            border_boards: non_neg_integer()
+            border_boards: non_neg_integer(),
+            band_boards: non_neg_integer(),
+            segments: pos_integer()
           }
         }
 
@@ -63,8 +77,9 @@ defmodule DeckingCalc.Calculator do
     layout = layout(input)
     joists = joists(input, layout)
     picture_frame = picture_frame_plan(input)
+    transverse_frame = transverse_frame_plan(input, layout)
 
-    rows = build_rows(layout, picture_frame)
+    rows = build_rows(layout, picture_frame, transverse_frame)
 
     cut_list =
       CutList.plan(rows,
@@ -73,13 +88,14 @@ defmodule DeckingCalc.Calculator do
         min_reuse: input.min_reuse
       )
 
-    summary = build_summary(cut_list, layout, picture_frame)
+    summary = build_summary(cut_list, layout, picture_frame, transverse_frame)
 
     %{
       input: input,
       layout: layout,
       joists: joists,
       picture_frame: picture_frame,
+      transverse_frame: transverse_frame,
       cut_list: cut_list,
       summary: summary
     }
@@ -198,50 +214,102 @@ defmodule DeckingCalc.Calculator do
     }
   end
 
-  @spec build_rows(layout(), picture_frame_plan() | nil) ::
-          [{term(), pos_integer()}]
-  defp build_rows(%{row_count: 0}, nil), do: []
+  @doc """
+  Derives transverse "breaker" band geometry. Only meaningful when boards
+  run along the long axis. The number of segments is auto-derived as the
+  smallest count such that each segment length is <= the longest available
+  stock board.
 
-  defp build_rows(%{row_count: rc, row_length: rl}, picture_frame) when rc > 0 do
-    field = for i <- 1..rc, do: {{:field, i}, rl}
+  Returns `nil` when the transverse frame is not configured, when boards
+  run :along_width (each row already <= short axis, so no help), or when
+  the field length already fits in stock so no breaker is needed.
+  """
+  @spec transverse_frame_plan(Input.t(), layout()) :: transverse_frame_plan() | nil
+  def transverse_frame_plan(%Input{transverse_frame: nil}, _layout), do: nil
 
-    border =
-      case picture_frame do
-        nil ->
-          []
+  def transverse_frame_plan(%Input{board_direction: :along_width}, _layout), do: nil
 
-        %{
-          long_side_count: lc,
-          long_side_length: ll,
-          short_side_count: sc,
-          short_side_length: sl
-        } ->
-          long = for i <- 1..lc, do: {{:border_long, i}, ll}
-          short = for i <- 1..sc, do: {{:border_short, i}, sl}
-          long ++ short
-      end
+  def transverse_frame_plan(
+        %Input{transverse_frame: %{band_boards: bb}} = input,
+        %{field_length: field_length, field_width: field_width}
+      ) do
+    max_stock = Enum.max(input.stock_lengths)
 
-    field ++ border
-  end
+    if field_length <= 0 or field_length <= max_stock do
+      nil
+    else
+      band_thickness = bb * input.board_width + max(bb - 1, 0) * input.gap
+      band_footprint = band_thickness + 2 * input.end_gap
 
-  defp build_rows(_layout, picture_frame) do
-    case picture_frame do
-      nil ->
-        []
+      segments = derive_segments(field_length, max_stock, band_footprint, 1)
+      band_count = max(segments - 1, 0)
+      total_band_footprint = band_count * band_footprint
+      segment_length = max(div(field_length - total_band_footprint, segments), 0)
 
       %{
-        long_side_count: lc,
-        long_side_length: ll,
-        short_side_count: sc,
-        short_side_length: sl
-      } ->
-        long = for i <- 1..lc, do: {{:border_long, i}, ll}
-        short = for i <- 1..sc, do: {{:border_short, i}, sl}
-        long ++ short
+        band_boards: bb,
+        segments: segments,
+        segment_length: segment_length,
+        band_thickness: band_thickness,
+        band_length: field_width,
+        band_count: band_count
+      }
     end
   end
 
-  defp build_summary(cut_list, layout, picture_frame) do
+  # Smallest n >= 1 such that floor((field_length - (n-1) * footprint) / n) <= max_stock.
+  # Capped at 32 to guard against pathological inputs.
+  defp derive_segments(_field_length, _max_stock, _footprint, n) when n >= 32, do: 32
+
+  defp derive_segments(field_length, max_stock, footprint, n) do
+    available = field_length - (n - 1) * footprint
+
+    cond do
+      available <= 0 -> max(n - 1, 1)
+      div(available, n) <= max_stock -> n
+      true -> derive_segments(field_length, max_stock, footprint, n + 1)
+    end
+  end
+
+  @spec build_rows(layout(), picture_frame_plan() | nil, transverse_frame_plan() | nil) ::
+          [{term(), pos_integer()}]
+  defp build_rows(layout, picture_frame, transverse_frame) do
+    field_rows(layout, transverse_frame) ++
+      border_rows(picture_frame) ++
+      band_rows(transverse_frame)
+  end
+
+  defp field_rows(%{row_count: 0}, _), do: []
+
+  defp field_rows(%{row_count: rc, row_length: rl}, nil) do
+    for i <- 1..rc, do: {{:field, i}, rl}
+  end
+
+  defp field_rows(%{row_count: rc}, %{segments: segs, segment_length: sl}) do
+    for s <- 1..segs, i <- 1..rc, do: {{:field, s, i}, sl}
+  end
+
+  defp border_rows(nil), do: []
+
+  defp border_rows(%{
+         long_side_count: lc,
+         long_side_length: ll,
+         short_side_count: sc,
+         short_side_length: sl
+       }) do
+    long = for i <- 1..lc, do: {{:border_long, i}, ll}
+    short = for i <- 1..sc, do: {{:border_short, i}, sl}
+    long ++ short
+  end
+
+  defp band_rows(nil), do: []
+  defp band_rows(%{band_count: 0}), do: []
+
+  defp band_rows(%{band_count: bc, band_boards: bb, band_length: bl}) do
+    for d <- 1..bc, i <- 1..bb, do: {{:band, d, i}, bl}
+  end
+
+  defp build_summary(cut_list, layout, picture_frame, transverse_frame) do
     purchased = cut_list.total_purchased
     used = cut_list.total_used
     waste = cut_list.total_waste
@@ -259,14 +327,25 @@ defmodule DeckingCalc.Calculator do
         %{long_side_count: lc, short_side_count: sc} -> lc + sc
       end
 
+    {band_count, segments} =
+      case transverse_frame do
+        nil -> {0, 1}
+        %{band_count: bc, band_boards: bb, segments: s} -> {bc * bb, s}
+      end
+
+    field_rows =
+      if transverse_frame, do: layout.row_count * segments, else: layout.row_count
+
     %{
       total_purchased: purchased,
       total_used: used,
       total_waste: waste,
       waste_pct: waste_pct,
       boards_by_stock: cut_list.stock_usage,
-      field_rows: layout.row_count,
-      border_boards: border_count
+      field_rows: field_rows,
+      border_boards: border_count,
+      band_boards: band_count,
+      segments: segments
     }
   end
 

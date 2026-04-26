@@ -16,6 +16,12 @@ defmodule DeckingCalc.Input do
               mitre: boolean()
             }
 
+  @type transverse_frame ::
+          nil
+          | %{
+              band_boards: pos_integer()
+            }
+
   @type t :: %__MODULE__{
           patio_length: pos_integer(),
           patio_width: pos_integer(),
@@ -28,7 +34,8 @@ defmodule DeckingCalc.Input do
           max_joist_spacing: pos_integer(),
           kerf: non_neg_integer(),
           min_reuse: non_neg_integer(),
-          picture_frame: picture_frame()
+          picture_frame: picture_frame(),
+          transverse_frame: transverse_frame()
         }
 
   @enforce_keys [
@@ -48,7 +55,8 @@ defmodule DeckingCalc.Input do
             max_joist_spacing: 400,
             kerf: 3,
             min_reuse: 300,
-            picture_frame: nil
+            picture_frame: nil,
+            transverse_frame: nil
 
   @fields %{
     patio_length: :pos_integer,
@@ -62,7 +70,8 @@ defmodule DeckingCalc.Input do
     max_joist_spacing: :pos_integer,
     kerf: :non_neg_integer,
     min_reuse: :non_neg_integer,
-    picture_frame: :picture_frame
+    picture_frame: :picture_frame,
+    transverse_frame: :transverse_frame
   }
 
   @doc """
@@ -112,7 +121,9 @@ defmodule DeckingCalc.Input do
       "min_reuse" => 300,
       "picture_frame_enabled" => false,
       "picture_frame_border_boards" => 1,
-      "picture_frame_mitre" => true
+      "picture_frame_mitre" => true,
+      "transverse_frame_enabled" => false,
+      "transverse_band_boards" => 1
     }
   end
 
@@ -145,7 +156,21 @@ defmodule DeckingCalc.Input do
           nil
       end
 
-    Map.put(base, :picture_frame, pf)
+    tf =
+      cond do
+        Map.has_key?(base, :transverse_frame) ->
+          base.transverse_frame
+
+        truthy?(Map.get(base, :transverse_frame_enabled)) ->
+          %{band_boards: Map.get(base, :transverse_band_boards, 1)}
+
+        true ->
+          nil
+      end
+
+    base
+    |> Map.put(:picture_frame, pf)
+    |> Map.put(:transverse_frame, tf)
   end
 
   defp to_atom(key) when is_atom(key), do: key
@@ -162,6 +187,7 @@ defmodule DeckingCalc.Input do
   defp default_for(:kerf), do: 3
   defp default_for(:min_reuse), do: 300
   defp default_for(:picture_frame), do: nil
+  defp default_for(:transverse_frame), do: nil
   defp default_for(_), do: nil
 
   defp cast(:pos_integer, v) do
@@ -225,6 +251,16 @@ defmodule DeckingCalc.Input do
   end
 
   defp cast(:picture_frame, _), do: {:error, "invalid picture frame configuration"}
+
+  defp cast(:transverse_frame, nil), do: {:ok, nil}
+
+  defp cast(:transverse_frame, %{} = tf) do
+    with {:ok, n} <- cast(:pos_integer, Map.get(tf, :band_boards, 1)) do
+      {:ok, %{band_boards: n}}
+    end
+  end
+
+  defp cast(:transverse_frame, _), do: {:error, "invalid transverse frame configuration"}
 
   defp to_integer(v) when is_integer(v), do: {:ok, v}
   defp to_integer(v) when is_float(v), do: {:ok, trunc(v)}
