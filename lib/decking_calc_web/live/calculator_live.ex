@@ -378,23 +378,25 @@ defmodule DeckingCalcWeb.CalculatorLive do
           </thead>
           <tbody>
             <%= for row <- @result.cut_list.rows do %>
-              <tr class="border-t border-base-200 hover:bg-base-200/40 transition-colors duration-100">
-                <td class="py-2 pl-4 whitespace-nowrap">
-                  <div class="flex items-center gap-2">
-                    <span class={["badge badge-xs font-medium", row_type_badge_class(row.row_id)]}>
-                      {row_type_label(row.row_id)}
-                    </span>
-                    <span class="text-xs text-base-content/50 font-mono">
+              <tr class="border-t border-base-200 odd:bg-base-100/40 hover:bg-primary/5 transition-colors duration-100">
+                <td class="py-1 pl-4 whitespace-nowrap">
+                  <div class="flex items-center gap-1.5">
+                    <%= if row_type_label(row.row_id) do %>
+                      <span class={["badge badge-xs font-medium", row_type_badge_class(row.row_id)]}>
+                        {row_type_label(row.row_id)}
+                      </span>
+                    <% end %>
+                    <span class="text-xs text-base-content/60 font-mono">
                       {row_index_label(row.row_id)}
                     </span>
                   </div>
                 </td>
-                <td class="py-2 text-right pr-4 whitespace-nowrap">
+                <td class="py-1 text-right pr-4 whitespace-nowrap">
                   <span class="text-sm font-mono text-base-content/70">
                     {fmt_length(row.row_length)}
                   </span>
                 </td>
-                <td class="py-2 pr-3">
+                <td class="py-1 pr-3">
                   <div class="flex flex-wrap gap-1">
                     <%= for cut <- row.cuts do %>
                       <.cut_chip cut={cut} />
@@ -635,11 +637,11 @@ defmodule DeckingCalcWeb.CalculatorLive do
     """
   end
 
-  defp row_type_label({:field, _}), do: "Field"
-  defp row_type_label({:field, _, _}), do: "Field"
+  defp row_type_label({:field, _}), do: nil
+  defp row_type_label({:field, _, _}), do: nil
   defp row_type_label({:border_cap, _}), do: "Cap"
   defp row_type_label({:band, _, _}), do: "Band"
-  defp row_type_label(_), do: "Row"
+  defp row_type_label(_), do: nil
 
   defp row_type_badge_class({:field, _}), do: "badge-neutral"
   defp row_type_badge_class({:field, _, _}), do: "badge-neutral"
