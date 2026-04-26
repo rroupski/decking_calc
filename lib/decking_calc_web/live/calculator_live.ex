@@ -215,6 +215,12 @@ defmodule DeckingCalcWeb.CalculatorLive do
               label="Band boards per breaker"
               error={@errors[:transverse_frame]}
             />
+            <.number_field
+              field={@form[:transverse_max_segment_length]}
+              label="Max segment length (mm)"
+              placeholder="auto"
+              error={@errors[:transverse_max_segment_length]}
+            />
           </div>
 
           <div class="pt-2">
@@ -241,6 +247,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
   attr :field, Phoenix.HTML.FormField, required: true
   attr :label, :string, required: true
   attr :error, :any, default: nil
+  attr :placeholder, :string, default: nil
 
   defp number_field(assigns) do
     ~H"""
@@ -251,6 +258,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
         inputmode="numeric"
         name={@field.name}
         value={@field.value}
+        placeholder={@placeholder}
         class={["input input-bordered", @error && "input-error"]}
       />
       <%= if @error do %>

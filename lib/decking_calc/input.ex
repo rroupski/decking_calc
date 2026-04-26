@@ -34,7 +34,8 @@ defmodule DeckingCalc.Input do
           kerf: non_neg_integer(),
           min_reuse: non_neg_integer(),
           picture_frame: picture_frame(),
-          transverse_frame: transverse_frame()
+          transverse_frame: transverse_frame(),
+          transverse_max_segment_length: pos_integer() | nil
         }
 
   @enforce_keys [
@@ -55,7 +56,8 @@ defmodule DeckingCalc.Input do
             kerf: 3,
             min_reuse: 300,
             picture_frame: nil,
-            transverse_frame: nil
+            transverse_frame: nil,
+            transverse_max_segment_length: nil
 
   @fields %{
     patio_length: :pos_integer,
@@ -70,7 +72,8 @@ defmodule DeckingCalc.Input do
     kerf: :non_neg_integer,
     min_reuse: :non_neg_integer,
     picture_frame: :picture_frame,
-    transverse_frame: :transverse_frame
+    transverse_frame: :transverse_frame,
+    transverse_max_segment_length: :optional_pos_integer
   }
 
   @doc """
@@ -121,7 +124,8 @@ defmodule DeckingCalc.Input do
       "picture_frame_enabled" => false,
       "picture_frame_border_boards" => 1,
       "transverse_frame_enabled" => false,
-      "transverse_band_boards" => 1
+      "transverse_band_boards" => 1,
+      "transverse_max_segment_length" => ""
     }
   end
 
@@ -183,6 +187,7 @@ defmodule DeckingCalc.Input do
   defp default_for(:min_reuse), do: 300
   defp default_for(:picture_frame), do: nil
   defp default_for(:transverse_frame), do: nil
+  defp default_for(:transverse_max_segment_length), do: nil
   defp default_for(_), do: nil
 
   defp cast(:pos_integer, v) do
@@ -234,6 +239,16 @@ defmodule DeckingCalc.Input do
       {:ok, atom}
     else
       {:error, "must be one of #{inspect(allowed)}"}
+    end
+  end
+
+  defp cast(:optional_pos_integer, nil), do: {:ok, nil}
+  defp cast(:optional_pos_integer, ""), do: {:ok, nil}
+
+  defp cast(:optional_pos_integer, v) do
+    case cast(:pos_integer, v) do
+      {:ok, n} -> {:ok, n}
+      {:error, _} -> {:error, "must be a positive integer or leave blank for automatic"}
     end
   end
 

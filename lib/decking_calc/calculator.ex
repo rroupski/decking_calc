@@ -236,8 +236,8 @@ defmodule DeckingCalc.Calculator do
         nil
 
       true ->
-        max_stock = Enum.max(input.stock_lengths)
-        segments = derive_segments(field_length, max_stock, band_footprint, 2)
+        max_len = input.transverse_max_segment_length || Enum.max(input.stock_lengths)
+        segments = derive_segments(field_length, max_len, band_footprint, 2)
         band_count = max(segments - 1, 0)
         total_band_footprint = band_count * band_footprint
         segment_length = max(div(field_length - total_band_footprint, segments), 0)
