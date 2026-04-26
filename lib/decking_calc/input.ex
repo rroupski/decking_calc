@@ -41,7 +41,7 @@ defmodule DeckingCalc.Input do
             patio_width: nil,
             board_width: nil,
             board_thickness: 25,
-            stock_lengths: [3600, 4800, 5400],
+            stock_lengths: [3000, 3600, 6000],
             gap: 5,
             end_gap: 3,
             board_direction: :along_length,
@@ -103,7 +103,7 @@ defmodule DeckingCalc.Input do
       "patio_width" => 3000,
       "board_width" => 145,
       "board_thickness" => 25,
-      "stock_lengths" => "3600, 4800, 5400",
+      "stock_lengths" => "3000, 3600, 6000",
       "gap" => 5,
       "end_gap" => 3,
       "board_direction" => "along_length",
@@ -144,7 +144,7 @@ defmodule DeckingCalc.Input do
   defp to_atom(key) when is_binary(key), do: String.to_existing_atom(key)
 
   defp default_for(:board_thickness), do: 25
-  defp default_for(:stock_lengths), do: [3600, 4800, 5400]
+  defp default_for(:stock_lengths), do: [3000, 3600, 6000]
   defp default_for(:gap), do: 5
   defp default_for(:end_gap), do: 3
   defp default_for(:board_direction), do: :along_length
