@@ -216,13 +216,13 @@ defmodule DeckingCalc.Calculator do
 
   @doc """
   Derives transverse "breaker" band geometry. Only meaningful when boards
-  run along the long axis. The number of segments is auto-derived as the
-  smallest count such that each segment length is <= the longest available
-  stock board.
+  run along the long axis. When enabled, at least one breaker (two
+  segments) is always produced; the segment count is auto-grown so that
+  each segment fits within the longest available stock board.
 
   Returns `nil` when the transverse frame is not configured, when boards
-  run :along_width (each row already <= short axis, so no help), or when
-  the field length already fits in stock so no breaker is needed.
+  run :along_width, or when the field is too small to fit even one
+  breaker plus two non-zero segments.
   """
   @spec transverse_frame_plan(Input.t(), layout()) :: transverse_frame_plan() | nil
   def transverse_frame_plan(%Input{transverse_frame: nil}, _layout), do: nil
@@ -233,31 +233,36 @@ defmodule DeckingCalc.Calculator do
         %Input{transverse_frame: %{band_boards: bb}} = input,
         %{field_length: field_length, field_width: field_width}
       ) do
-    max_stock = Enum.max(input.stock_lengths)
+    band_thickness = bb * input.board_width + max(bb - 1, 0) * input.gap
+    band_footprint = band_thickness + 2 * input.end_gap
 
-    if field_length <= 0 or field_length <= max_stock do
-      nil
-    else
-      band_thickness = bb * input.board_width + max(bb - 1, 0) * input.gap
-      band_footprint = band_thickness + 2 * input.end_gap
+    cond do
+      field_length <= 0 ->
+        nil
 
-      segments = derive_segments(field_length, max_stock, band_footprint, 1)
-      band_count = max(segments - 1, 0)
-      total_band_footprint = band_count * band_footprint
-      segment_length = max(div(field_length - total_band_footprint, segments), 0)
+      # Need at least one breaker plus two non-zero segments.
+      field_length <= band_footprint ->
+        nil
 
-      %{
-        band_boards: bb,
-        segments: segments,
-        segment_length: segment_length,
-        band_thickness: band_thickness,
-        band_length: field_width,
-        band_count: band_count
-      }
+      true ->
+        max_stock = Enum.max(input.stock_lengths)
+        segments = derive_segments(field_length, max_stock, band_footprint, 2)
+        band_count = max(segments - 1, 0)
+        total_band_footprint = band_count * band_footprint
+        segment_length = max(div(field_length - total_band_footprint, segments), 0)
+
+        %{
+          band_boards: bb,
+          segments: segments,
+          segment_length: segment_length,
+          band_thickness: band_thickness,
+          band_length: field_width,
+          band_count: band_count
+        }
     end
   end
 
-  # Smallest n >= 1 such that floor((field_length - (n-1) * footprint) / n) <= max_stock.
+  # Smallest n >= start such that floor((field_length - (n-1) * footprint) / n) <= max_stock.
   # Capped at 32 to guard against pathological inputs.
   defp derive_segments(_field_length, _max_stock, _footprint, n) when n >= 32, do: 32
 

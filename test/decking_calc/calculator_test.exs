@@ -152,11 +152,26 @@ defmodule DeckingCalc.CalculatorTest do
       assert Calculator.transverse_frame_plan(input!(), Calculator.layout(input!())) == nil
     end
 
-    test "returns nil when field already fits in stock" do
+    test "produces a single breaker when enabled even if the field fits in stock" do
       input =
         input!(%{
           patio_length: 4000,
           stock_lengths: "4000, 6000",
+          transverse_frame_enabled: true,
+          transverse_band_boards: 1
+        })
+
+      pf = Calculator.transverse_frame_plan(input, Calculator.layout(input))
+      assert pf.segments == 2
+      assert pf.band_count == 1
+    end
+
+    test "returns nil when the field is too small for even one breaker" do
+      input =
+        input!(%{
+          patio_length: 100,
+          patio_width: 3500,
+          board_width: 150,
           transverse_frame_enabled: true,
           transverse_band_boards: 1
         })
