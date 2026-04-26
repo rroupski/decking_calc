@@ -32,4 +32,17 @@ defmodule DeckingCalc.InputTest do
     assert {:ok, input} = Input.new(params)
     assert input.stock_lengths == [4800, 3600]
   end
+
+  test "ignores Phoenix bookkeeping keys (_unused_*, _target, _csrf_token)" do
+    params =
+      Input.default_params()
+      |> Map.put("_unused_board_direction", "")
+      |> Map.put("_unused_picture_frame_mitre", "")
+      |> Map.put("_target", ["calc", "patio_length"])
+      |> Map.put("_csrf_token", "abc123")
+      |> Map.put("unknown_field", "ignored")
+
+    assert {:ok, input} = Input.new(params)
+    assert input.patio_length == 4000
+  end
 end

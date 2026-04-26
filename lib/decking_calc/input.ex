@@ -117,9 +117,17 @@ defmodule DeckingCalc.Input do
   end
 
   defp normalize_keys(params) do
+    # Phoenix forms include bookkeeping keys we never declared as fields:
+    # `_unused_*` (paired with each input to detect unchanged values),
+    # `_target` (the field that triggered the event), and `_csrf_token`.
+    # We drop anything that starts with an underscore, plus any string key
+    # whose atom hasn't been declared on this module.
     base =
       Enum.reduce(params, %{}, fn {k, v}, acc ->
-        Map.put(acc, to_atom(k), v)
+        case to_atom(k) do
+          nil -> acc
+          atom -> Map.put(acc, atom, v)
+        end
       end)
 
     pf =
@@ -141,7 +149,9 @@ defmodule DeckingCalc.Input do
   end
 
   defp to_atom(key) when is_atom(key), do: key
-  defp to_atom(key) when is_binary(key), do: String.to_existing_atom(key)
+  defp to_atom("_" <> _), do: nil
+  defp to_atom(key) when is_binary(key), do: safe_to_atom(key)
+  defp to_atom(_), do: nil
 
   defp default_for(:board_thickness), do: 25
   defp default_for(:stock_lengths), do: [3000, 3600, 6000]
