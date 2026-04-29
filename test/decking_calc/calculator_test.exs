@@ -260,6 +260,120 @@ defmodule DeckingCalc.CalculatorTest do
       assert tf.band_count == 3
     end
 
+    # ── Exact segment mode ───────────────────────────────────────────────────
+    #
+    # Fixture: field_length=11800, d=3000, band_footprint=156 (150mm board + 2×3mm end_gap)
+    #   n = div(11800-1, 3000+156) + 1 = div(11799, 3156) + 1 = 3+1 = 4
+    #   last = 11800 - 3×(3000+156) = 11800 - 9468 = 2332 mm
+    #   Segments 1-3: exactly 3000 mm   Segment 4: 2332 mm
+
+    test "exact mode uses specified length for first n-1 segments" do
+      input =
+        input!(%{
+          patio_length: 11_800,
+          patio_width: 3500,
+          board_width: 150,
+          gap: 5,
+          end_gap: 3,
+          stock_lengths: "3000, 3600, 4000",
+          board_direction: :along_length,
+          transverse_frame_enabled: true,
+          transverse_band_boards: 1,
+          transverse_max_segment_length: 3000,
+          transverse_exact_segment: true
+        })
+
+      layout = Calculator.layout(input)
+      tf = Calculator.transverse_frame_plan(input, layout)
+
+      assert tf.segments == 4
+      assert tf.segment_length == 3000
+      assert tf.last_segment_length == 2332
+      assert tf.band_count == 3
+    end
+
+    test "exact mode last segment absorbs the remainder (shorter than d)" do
+      input =
+        input!(%{
+          patio_length: 11_800,
+          patio_width: 3500,
+          board_width: 150,
+          gap: 5,
+          end_gap: 3,
+          stock_lengths: "3000, 3600, 4000",
+          board_direction: :along_length,
+          transverse_frame_enabled: true,
+          transverse_band_boards: 1,
+          transverse_max_segment_length: 3000,
+          transverse_exact_segment: true
+        })
+
+      layout = Calculator.layout(input)
+      tf = Calculator.transverse_frame_plan(input, layout)
+
+      assert tf.last_segment_length < tf.segment_length
+      # Verify the layout adds up to field_length exactly.
+      assert (tf.segments - 1) * tf.segment_length +
+               tf.band_count * (tf.band_thickness + 2 * input.end_gap) +
+               tf.last_segment_length == layout.field_length
+    end
+
+    test "exact mode cut list uses segment_length for first groups and last_segment_length for the last" do
+      input =
+        input!(%{
+          patio_length: 11_800,
+          patio_width: 3500,
+          board_width: 150,
+          gap: 5,
+          end_gap: 3,
+          stock_lengths: "3000, 3600, 4000",
+          board_direction: :along_length,
+          transverse_frame_enabled: true,
+          transverse_band_boards: 1,
+          transverse_max_segment_length: 3000,
+          transverse_exact_segment: true
+        })
+
+      result = Calculator.compute(input)
+      tf = result.transverse_frame
+
+      regular_rows =
+        result.cut_list.rows
+        |> Enum.filter(&match?({:field, s, _} when s < tf.segments, &1.row_id))
+
+      last_rows =
+        result.cut_list.rows
+        |> Enum.filter(&match?({:field, s, _} when s == tf.segments, &1.row_id))
+
+      assert Enum.all?(regular_rows, &(&1.row_length == tf.segment_length))
+      assert Enum.all?(last_rows, &(&1.row_length == tf.last_segment_length))
+    end
+
+    test "exact mode falls back to auto when d + band_footprint >= field_length" do
+      # d=12000 → d+fp = 12156 > field_length=11800 → falls back to auto (2 even segments)
+      input =
+        input!(%{
+          patio_length: 11_800,
+          patio_width: 3500,
+          board_width: 150,
+          gap: 5,
+          end_gap: 3,
+          stock_lengths: "3000, 3600, 4000",
+          board_direction: :along_length,
+          transverse_frame_enabled: true,
+          transverse_band_boards: 1,
+          transverse_max_segment_length: 12_000,
+          transverse_exact_segment: true
+        })
+
+      layout = Calculator.layout(input)
+      tf = Calculator.transverse_frame_plan(input, layout)
+
+      # Auto mode: all segments equal
+      assert tf.segment_length == tf.last_segment_length
+      assert tf.segments >= 2
+    end
+
     test "transverse_max_segment_length larger than stock cap can reduce segment count" do
       # With max_len=6000: n=2 → div(11800-1×156, 2) = 5822 ≤ 6000 ✓
       # Without override, max_stock=4000 forces n=3.

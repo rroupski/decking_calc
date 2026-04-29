@@ -63,6 +63,31 @@ defmodule DeckingCalc.InputTest do
     end
   end
 
+  describe "transverse_exact_segment" do
+    test "is false by default" do
+      assert {:ok, input} = Input.new(Input.default_params())
+      assert input.transverse_exact_segment == false
+    end
+
+    test "parses true from string \"true\"" do
+      params = Map.put(Input.default_params(), "transverse_exact_segment", "true")
+      assert {:ok, input} = Input.new(params)
+      assert input.transverse_exact_segment == true
+    end
+
+    test "parses true from checkbox value \"on\"" do
+      params = Map.put(Input.default_params(), "transverse_exact_segment", "on")
+      assert {:ok, input} = Input.new(params)
+      assert input.transverse_exact_segment == true
+    end
+
+    test "treats missing key as false" do
+      params = Map.delete(Input.default_params(), "transverse_exact_segment")
+      assert {:ok, input} = Input.new(params)
+      assert input.transverse_exact_segment == false
+    end
+  end
+
   test "ignores Phoenix bookkeeping keys (_unused_*, _target, _csrf_token)" do
     params =
       Input.default_params()
