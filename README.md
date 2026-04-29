@@ -5,10 +5,10 @@ Interactive calculator for laying out decking boards on a raised patio.
 Given the patio dimensions, available board stock, gap/kerf tolerances and an
 optional picture-frame border, the app produces:
 
-- Field row count, row length and the width of any narrowed last row.
+- Field row count, row length, and the last-row width (ripped wider than the nominal board width if needed to fill the patio flush).
 - Joist count and actual centre-to-centre spacing (≤ the configured maximum).
 - A waste-optimised cut list per row (First-Fit-Decreasing with offcut reuse).
-- Perimeter boards and cut list for the picture-frame border (mitred or butt).
+- End-cap boards and cut list for the picture-frame border.
 - A summary: boards to purchase by stock length, total linear metres purchased
   vs used, and waste percentage.
 
@@ -76,14 +76,14 @@ All linear measurements are in **millimetres**.
 
 ### Picture-frame border
 
-An optional decorative border that frames the field boards around the perimeter of the patio. Enable it by checking the picture-frame option in the UI.
+An optional set of end-cap boards laid **perpendicular** to the field boards at each end of the run, hiding the cut ends. There are no long-side border boards.
 
 | Parameter | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `picture_frame_enabled` | boolean | no | `false` | Whether to include a picture-frame border. |
-| `picture_frame_border_boards` | positive integer | no | `1` | Number of boards wide the border is on each side of the patio. |
+| `picture_frame_enabled` | boolean | no | `false` | Whether to include picture-frame end caps. |
+| `picture_frame_border_boards` | positive integer | no | `1` | Number of boards wide each end cap is. |
 
-When enabled, the calculator subtracts the border width from the available field area, generates a separate cut list for the border boards, and reports mitred or butt-jointed corner options.
+When enabled, the calculator insets the field along the axis boards run by the cap width and generates a separate cut list for the cap boards.
 
 ### Transverse band
 
@@ -142,9 +142,9 @@ width equals `board_width` and the banner disappears.
 - Boards run in one direction across the entire field; the opposite axis is
   subdivided into rows of `board_width + gap`.
 - Joists run perpendicular to the boards and span the short axis of the
-  patio. Joist count is `ceil(span / max_spacing) + 1`.
-- Picture-frame corners are either mitred (all four sides span the outer
-  edge) or butt-jointed (short sides fit between the long sides).
+  patio. Joist count is `ceil(field_length / max_spacing) + 1`.
+- Picture-frame end caps span the full perpendicular axis at each end of
+  the field; there are no long-side borders or corner joints.
 - Offcuts shorter than `min_reuse` are treated as waste.
 - Kerf loss is applied once per actual cut (no kerf is deducted when a piece
   is used to its full length).
