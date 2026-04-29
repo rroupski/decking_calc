@@ -93,7 +93,22 @@ An optional accent band of boards running perpendicular to the main field boards
 |---|---|---|---|---|
 | `transverse_frame_enabled` | boolean | no | `false` | Whether to include a transverse band. |
 | `transverse_band_boards` | positive integer | no | `1` | Number of boards wide the transverse band is. |
-| `transverse_max_segment_length` | positive integer | no | blank (auto) | Maximum length in mm of each field segment between breaker bands. When blank, the longest available stock board length is used as the cap. Setting a smaller value forces more breaker bands; setting a larger value may allow fewer. |
+| `transverse_max_segment_length` | positive integer | no | blank (auto) | Controls the segment length between breaker bands (see modes below). When blank, the longest available stock board is used as the cap. |
+| `transverse_exact_segment` | boolean | no | `false` | Switches between the two segment-length modes (see below). |
+
+The transverse breaker frame operates in one of two modes, selected by `transverse_exact_segment`:
+
+**Auto mode** (`transverse_exact_segment = false`, default)
+Finds the minimum number of segments such that every uniformly-distributed segment is ≤ `transverse_max_segment_length` (or ≤ the longest stock board when blank). The field is then divided evenly, so all segments are the same length.
+
+**Exact mode** (`transverse_exact_segment = true`)
+Requires `transverse_max_segment_length` to be set. The first `n − 1` segments are cut to **exactly** the specified length; the last segment absorbs the remainder and may therefore be shorter. The segment count `n` is derived as:
+```
+n = max(floor((field_length − 1) / (d + band_footprint)) + 1, 2)
+```
+where `d` is the specified length and `band_footprint = band_thickness + 2 × end_gap`. If `d` is too large to fit even one breaker band between two non-trivial segments, exact mode falls back to auto mode automatically.
+
+The *Segments* summary stat shows `n − 1 × d + last_length` when the last segment differs from the rest, and the cut list shows each row's actual length individually.
 
 ## Last-row width optimisation
 
