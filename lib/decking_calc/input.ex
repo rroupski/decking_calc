@@ -35,7 +35,8 @@ defmodule DeckingCalc.Input do
           min_reuse: non_neg_integer(),
           picture_frame: picture_frame(),
           transverse_frame: transverse_frame(),
-          transverse_max_segment_length: pos_integer() | nil
+          transverse_max_segment_length: pos_integer() | nil,
+          transverse_exact_segment: boolean()
         }
 
   @enforce_keys [
@@ -57,7 +58,8 @@ defmodule DeckingCalc.Input do
             min_reuse: 300,
             picture_frame: nil,
             transverse_frame: nil,
-            transverse_max_segment_length: nil
+            transverse_max_segment_length: nil,
+            transverse_exact_segment: false
 
   @fields %{
     patio_length: :pos_integer,
@@ -73,7 +75,8 @@ defmodule DeckingCalc.Input do
     min_reuse: :non_neg_integer,
     picture_frame: :picture_frame,
     transverse_frame: :transverse_frame,
-    transverse_max_segment_length: :optional_pos_integer
+    transverse_max_segment_length: :optional_pos_integer,
+    transverse_exact_segment: :boolean
   }
 
   @doc """
@@ -125,7 +128,8 @@ defmodule DeckingCalc.Input do
       "picture_frame_border_boards" => 1,
       "transverse_frame_enabled" => false,
       "transverse_band_boards" => 1,
-      "transverse_max_segment_length" => ""
+      "transverse_max_segment_length" => "",
+      "transverse_exact_segment" => false
     }
   end
 
@@ -188,6 +192,7 @@ defmodule DeckingCalc.Input do
   defp default_for(:picture_frame), do: nil
   defp default_for(:transverse_frame), do: nil
   defp default_for(:transverse_max_segment_length), do: nil
+  defp default_for(:transverse_exact_segment), do: false
   defp default_for(_), do: nil
 
   defp cast(:pos_integer, v) do
@@ -241,6 +246,8 @@ defmodule DeckingCalc.Input do
       {:error, "must be one of #{inspect(allowed)}"}
     end
   end
+
+  defp cast(:boolean, v), do: {:ok, truthy?(v)}
 
   defp cast(:optional_pos_integer, nil), do: {:ok, nil}
   defp cast(:optional_pos_integer, ""), do: {:ok, nil}

@@ -47,6 +47,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
   defp assign_from_params(socket, params) do
     params = normalize_checkbox(params, "picture_frame_enabled")
     params = normalize_checkbox(params, "transverse_frame_enabled")
+    params = normalize_checkbox(params, "transverse_exact_segment")
 
     case Input.new(params) do
       {:ok, input} ->
@@ -209,6 +210,20 @@ defmodule DeckingCalcWeb.CalculatorLive do
             />
             <span class="label-text">Enable transverse breaker frame</span>
           </label>
+          <label class="label cursor-pointer justify-start gap-3 pl-1">
+            <input type="hidden" name="calc[transverse_exact_segment]" value="false" />
+            <input
+              type="checkbox"
+              name="calc[transverse_exact_segment]"
+              value="true"
+              class="checkbox checkbox-sm"
+              checked={checked?(@form[:transverse_exact_segment].value)}
+            />
+            <span class="label-text text-sm text-base-content/70">
+              Use exact segment length
+              <span class="text-base-content/40">(last segment may differ)</span>
+            </span>
+          </label>
           <div class="grid grid-cols-2 gap-3">
             <.number_field
               field={@form[:transverse_band_boards]}
@@ -321,7 +336,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
         <%= if @result.transverse_frame do %>
           <.stat
             label="Segments"
-            value={"#{@result.summary.segments} × #{fmt_length(@result.transverse_frame.segment_length)}"}
+            value={segments_stat_value(@result.transverse_frame, @result.summary)}
           />
           <.stat
             label="Breaker bands"
@@ -654,6 +669,14 @@ defmodule DeckingCalcWeb.CalculatorLive do
   defp row_index_label({:border_cap, i}), do: "##{i}"
   defp row_index_label({:band, d, i}), do: "B#{d} · ##{i}"
   defp row_index_label(_), do: ""
+
+  defp segments_stat_value(%{segment_length: sl, last_segment_length: lsl, segments: n}, _summary)
+       when sl == lsl,
+       do: "#{n} × #{fmt_length(sl)}"
+
+  defp segments_stat_value(%{segment_length: sl, last_segment_length: lsl, segments: n}, _summary) do
+    "#{n - 1} × #{fmt_length(sl)} + #{fmt_length(lsl)}"
+  end
 
   defp field_row_length(%{transverse_frame: %{segment_length: sl}}), do: sl
   defp field_row_length(%{layout: %{row_length: rl}}), do: rl

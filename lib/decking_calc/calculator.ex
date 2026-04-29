@@ -41,6 +41,7 @@ defmodule DeckingCalc.Calculator do
           band_boards: pos_integer(),
           segments: pos_integer(),
           segment_length: pos_integer(),
+          last_segment_length: pos_integer(),
           band_thickness: pos_integer(),
           band_length: pos_integer(),
           band_count: non_neg_integer()
@@ -236,20 +237,60 @@ defmodule DeckingCalc.Calculator do
         nil
 
       true ->
-        max_len = input.transverse_max_segment_length || Enum.max(input.stock_lengths)
-        segments = derive_segments(field_length, max_len, band_footprint, 2)
-        band_count = max(segments - 1, 0)
-        total_band_footprint = band_count * band_footprint
-        segment_length = max(div(field_length - total_band_footprint, segments), 0)
+        if input.transverse_exact_segment and input.transverse_max_segment_length do
+          exact_segment_plan(field_length, field_width, input, band_thickness, band_footprint, bb)
+        else
+          auto_segment_plan(field_length, field_width, input, band_thickness, band_footprint, bb)
+        end
+    end
+  end
 
-        %{
-          band_boards: bb,
-          segments: segments,
-          segment_length: segment_length,
-          band_thickness: band_thickness,
-          band_length: field_width,
-          band_count: band_count
-        }
+  # Auto mode: find the minimum segment count so every segment ≤ max_len,
+  # then distribute the field evenly across all segments.
+  defp auto_segment_plan(field_length, field_width, input, band_thickness, band_footprint, bb) do
+    max_len = input.transverse_max_segment_length || Enum.max(input.stock_lengths)
+    segments = derive_segments(field_length, max_len, band_footprint, 2)
+    band_count = max(segments - 1, 0)
+    segment_length = max(div(field_length - band_count * band_footprint, segments), 0)
+
+    %{
+      band_boards: bb,
+      segments: segments,
+      segment_length: segment_length,
+      last_segment_length: segment_length,
+      band_thickness: band_thickness,
+      band_length: field_width,
+      band_count: band_count
+    }
+  end
+
+  # Exact mode: the first (n-1) segments are exactly `d` mm; the last segment
+  # absorbs the remainder and may be shorter. Falls back to auto if `d` is too
+  # large to fit even one breaker between two non-trivial segments.
+  #
+  # Formula derivation (n total segments, n-1 bands):
+  #   total = (n-1)*d + (n-1)*fp + last  →  last = fl - (n-1)*(d+fp)
+  #   last > 0  ↔  n-1 < fl/(d+fp)  ↔  n ≤ div(fl-1, d+fp) + 1
+  defp exact_segment_plan(field_length, field_width, input, band_thickness, band_footprint, bb) do
+    d = input.transverse_max_segment_length
+
+    if d + band_footprint >= field_length do
+      # Desired length is too large; fall back to auto.
+      auto_segment_plan(field_length, field_width, input, band_thickness, band_footprint, bb)
+    else
+      n = max(div(field_length - 1, d + band_footprint) + 1, 2)
+      band_count = n - 1
+      last_segment_length = max(field_length - band_count * (d + band_footprint), 1)
+
+      %{
+        band_boards: bb,
+        segments: n,
+        segment_length: d,
+        last_segment_length: last_segment_length,
+        band_thickness: band_thickness,
+        band_length: field_width,
+        band_count: band_count
+      }
     end
   end
 
@@ -281,8 +322,15 @@ defmodule DeckingCalc.Calculator do
     for i <- 1..rc, do: {{:field, i}, rl}
   end
 
-  defp field_rows(%{row_count: rc}, %{segments: segs, segment_length: sl}) do
-    for s <- 1..segs, i <- 1..rc, do: {{:field, s, i}, sl}
+  defp field_rows(%{row_count: rc}, %{
+         segments: segs,
+         segment_length: sl,
+         last_segment_length: lsl
+       }) do
+    for s <- 1..segs, i <- 1..rc do
+      len = if s == segs, do: lsl, else: sl
+      {{:field, s, i}, len}
+    end
   end
 
   defp border_rows(nil), do: []
