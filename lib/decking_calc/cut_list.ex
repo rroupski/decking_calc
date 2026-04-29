@@ -20,43 +20,43 @@ defmodule DeckingCalc.CutList do
       largest offcut that fits, otherwise the longest available stock,
       and recurse on the leftover.
     * A saw kerf is subtracted each time a cut leaves a non-zero offcut.
-    * Offcuts >= `min_reuse_mm` go back into the pool for later rows.
+    * Offcuts >= `min_reuse` go back into the pool for later rows.
   """
 
   @type row_id :: term()
   @type cut :: %{
           source: :stock | :offcut,
-          stock_length_mm: pos_integer() | nil,
-          length_mm: pos_integer()
+          stock_length: pos_integer() | nil,
+          length: pos_integer()
         }
   @type row_plan :: %{
           row_id: row_id(),
-          row_length_mm: pos_integer(),
+          row_length: pos_integer(),
           cuts: [cut()]
         }
   @type plan :: %{
           rows: [row_plan()],
           stock_usage: %{pos_integer() => non_neg_integer()},
-          unused_offcuts_mm: [pos_integer()],
-          total_purchased_mm: non_neg_integer(),
-          total_used_mm: non_neg_integer(),
-          total_waste_mm: non_neg_integer()
+          unused_offcuts: [pos_integer()],
+          total_purchased: non_neg_integer(),
+          total_used: non_neg_integer(),
+          total_waste: non_neg_integer()
         }
 
   @type opts :: [
-          stock_lengths_mm: [pos_integer(), ...],
-          kerf_mm: non_neg_integer(),
-          min_reuse_mm: non_neg_integer()
+          stock_lengths: [pos_integer(), ...],
+          kerf: non_neg_integer(),
+          min_reuse: non_neg_integer()
         ]
 
   @doc """
-  Plan cuts for a list of `{row_id, row_length_mm}` tuples.
+  Plan cuts for a list of `{row_id, row_length}` tuples.
   """
   @spec plan([{row_id(), pos_integer()}], opts()) :: plan()
   def plan(rows, opts) when is_list(rows) do
-    stock = opts |> Keyword.fetch!(:stock_lengths_mm) |> Enum.sort(:desc)
-    kerf = Keyword.get(opts, :kerf_mm, 3)
-    min_reuse = Keyword.get(opts, :min_reuse_mm, 300)
+    stock = opts |> Keyword.fetch!(:stock_lengths) |> Enum.sort(:desc)
+    kerf = Keyword.get(opts, :kerf, 3)
+    min_reuse = Keyword.get(opts, :min_reuse, 300)
 
     ordered =
       rows
@@ -67,8 +67,8 @@ defmodule DeckingCalc.CutList do
       offcuts: [],
       stock_usage: %{},
       rows: %{},
-      purchased_mm: 0,
-      used_mm: 0
+      purchased: 0,
+      used: 0
     }
 
     acc =
@@ -81,10 +81,10 @@ defmodule DeckingCalc.CutList do
     %{
       rows: rows_in_order,
       stock_usage: acc.stock_usage,
-      unused_offcuts_mm: Enum.sort(acc.offcuts, :desc),
-      total_purchased_mm: acc.purchased_mm,
-      total_used_mm: acc.used_mm,
-      total_waste_mm: acc.purchased_mm - acc.used_mm
+      unused_offcuts: Enum.sort(acc.offcuts, :desc),
+      total_purchased: acc.purchased,
+      total_used: acc.used,
+      total_waste: acc.purchased - acc.used
     }
   end
 
@@ -93,7 +93,7 @@ defmodule DeckingCalc.CutList do
 
     row_plan = %{
       row_id: id,
-      row_length_mm: row_length,
+      row_length: row_length,
       cuts: Enum.reverse(cuts_rev)
     }
 
@@ -150,7 +150,7 @@ defmodule DeckingCalc.CutList do
   defp buy_stock(acc, stock_len) do
     %{
       acc
-      | purchased_mm: acc.purchased_mm + stock_len,
+      | purchased: acc.purchased + stock_len,
         stock_usage: Map.update(acc.stock_usage, stock_len, 1, &(&1 + 1))
     }
   end
@@ -170,9 +170,9 @@ defmodule DeckingCalc.CutList do
        ) do
     cut_length = min(piece_length, remaining)
 
-    cut = %{source: source, stock_length_mm: stock_length, length_mm: cut_length}
+    cut = %{source: source, stock_length: stock_length, length: cut_length}
     cuts = [cut | cuts]
-    acc = %{acc | used_mm: acc.used_mm + cut_length}
+    acc = %{acc | used: acc.used + cut_length}
 
     leftover_before_kerf = piece_length - cut_length
 

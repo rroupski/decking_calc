@@ -12,57 +12,71 @@ defmodule DeckingCalc.Input do
   @type picture_frame ::
           nil
           | %{
-              border_boards: pos_integer(),
-              mitre: boolean()
+              border_boards: pos_integer()
+            }
+
+  @type transverse_frame ::
+          nil
+          | %{
+              band_boards: pos_integer()
             }
 
   @type t :: %__MODULE__{
-          patio_length_mm: pos_integer(),
-          patio_width_mm: pos_integer(),
-          board_width_mm: pos_integer(),
-          board_thickness_mm: pos_integer(),
-          stock_lengths_mm: [pos_integer(), ...],
-          gap_mm: non_neg_integer(),
-          end_gap_mm: non_neg_integer(),
+          patio_length: pos_integer(),
+          patio_width: pos_integer(),
+          board_width: pos_integer(),
+          board_thickness: pos_integer(),
+          stock_lengths: [pos_integer(), ...],
+          gap: non_neg_integer(),
+          end_gap: non_neg_integer(),
           board_direction: direction(),
-          max_joist_spacing_mm: pos_integer(),
-          kerf_mm: non_neg_integer(),
-          min_reuse_mm: non_neg_integer(),
-          picture_frame: picture_frame()
+          max_joist_spacing: pos_integer(),
+          kerf: non_neg_integer(),
+          min_reuse: non_neg_integer(),
+          picture_frame: picture_frame(),
+          transverse_frame: transverse_frame(),
+          transverse_max_segment_length: pos_integer() | nil,
+          transverse_exact_segment: boolean()
         }
 
   @enforce_keys [
-    :patio_length_mm,
-    :patio_width_mm,
-    :board_width_mm,
-    :stock_lengths_mm
+    :patio_length,
+    :patio_width,
+    :board_width,
+    :stock_lengths
   ]
-  defstruct patio_length_mm: nil,
-            patio_width_mm: nil,
-            board_width_mm: nil,
-            board_thickness_mm: 25,
-            stock_lengths_mm: [3600, 4800, 5400],
-            gap_mm: 5,
-            end_gap_mm: 3,
+  defstruct patio_length: nil,
+            patio_width: nil,
+            board_width: nil,
+            board_thickness: 25,
+            stock_lengths: [3000, 3600, 4000],
+            gap: 5,
+            end_gap: 3,
             board_direction: :along_length,
-            max_joist_spacing_mm: 400,
-            kerf_mm: 3,
-            min_reuse_mm: 300,
-            picture_frame: nil
+            max_joist_spacing: 400,
+            kerf: 3,
+            min_reuse: 300,
+            picture_frame: nil,
+            transverse_frame: nil,
+            transverse_max_segment_length: nil,
+            transverse_exact_segment: false
 
   @fields %{
-    patio_length_mm: :pos_integer,
-    patio_width_mm: :pos_integer,
-    board_width_mm: :pos_integer,
-    board_thickness_mm: :pos_integer,
-    stock_lengths_mm: :pos_integer_list,
-    gap_mm: :non_neg_integer,
-    end_gap_mm: :non_neg_integer,
+    patio_length: :pos_integer,
+    patio_width: :pos_integer,
+    board_width: :pos_integer,
+    board_thickness: :pos_integer,
+    stock_lengths: :pos_integer_list,
+    gap: :non_neg_integer,
+    end_gap: :non_neg_integer,
     board_direction: {:enum, [:along_length, :along_width]},
-    max_joist_spacing_mm: :pos_integer,
-    kerf_mm: :non_neg_integer,
-    min_reuse_mm: :non_neg_integer,
-    picture_frame: :picture_frame
+    max_joist_spacing: :pos_integer,
+    kerf: :non_neg_integer,
+    min_reuse: :non_neg_integer,
+    picture_frame: :picture_frame,
+    transverse_frame: :transverse_frame,
+    transverse_max_segment_length: :optional_pos_integer,
+    transverse_exact_segment: :boolean
   }
 
   @doc """
@@ -99,27 +113,38 @@ defmodule DeckingCalc.Input do
   @spec default_params() :: %{String.t() => term()}
   def default_params do
     %{
-      "patio_length_mm" => 4000,
-      "patio_width_mm" => 3000,
-      "board_width_mm" => 145,
-      "board_thickness_mm" => 25,
-      "stock_lengths_mm" => "3600, 4800, 5400",
-      "gap_mm" => 5,
-      "end_gap_mm" => 3,
+      "patio_length" => 4000,
+      "patio_width" => 3500,
+      "board_width" => 150,
+      "board_thickness" => 25,
+      "stock_lengths" => "3000, 3600, 4000",
+      "gap" => 5,
+      "end_gap" => 3,
       "board_direction" => "along_length",
-      "max_joist_spacing_mm" => 400,
-      "kerf_mm" => 3,
-      "min_reuse_mm" => 300,
+      "max_joist_spacing" => 400,
+      "kerf" => 3,
+      "min_reuse" => 300,
       "picture_frame_enabled" => false,
       "picture_frame_border_boards" => 1,
-      "picture_frame_mitre" => true
+      "transverse_frame_enabled" => false,
+      "transverse_band_boards" => 1,
+      "transverse_max_segment_length" => "",
+      "transverse_exact_segment" => false
     }
   end
 
   defp normalize_keys(params) do
+    # Phoenix forms include bookkeeping keys we never declared as fields:
+    # `_unused_*` (paired with each input to detect unchanged values),
+    # `_target` (the field that triggered the event), and `_csrf_token`.
+    # We drop anything that starts with an underscore, plus any string key
+    # whose atom hasn't been declared on this module.
     base =
       Enum.reduce(params, %{}, fn {k, v}, acc ->
-        Map.put(acc, to_atom(k), v)
+        case to_atom(k) do
+          nil -> acc
+          atom -> Map.put(acc, atom, v)
+        end
       end)
 
     pf =
@@ -128,30 +153,46 @@ defmodule DeckingCalc.Input do
           base.picture_frame
 
         truthy?(Map.get(base, :picture_frame_enabled)) ->
-          %{
-            border_boards: Map.get(base, :picture_frame_border_boards, 1),
-            mitre: truthy?(Map.get(base, :picture_frame_mitre, true))
-          }
+          %{border_boards: Map.get(base, :picture_frame_border_boards, 1)}
 
         true ->
           nil
       end
 
-    Map.put(base, :picture_frame, pf)
+    tf =
+      cond do
+        Map.has_key?(base, :transverse_frame) ->
+          base.transverse_frame
+
+        truthy?(Map.get(base, :transverse_frame_enabled)) ->
+          %{band_boards: Map.get(base, :transverse_band_boards, 1)}
+
+        true ->
+          nil
+      end
+
+    base
+    |> Map.put(:picture_frame, pf)
+    |> Map.put(:transverse_frame, tf)
   end
 
   defp to_atom(key) when is_atom(key), do: key
-  defp to_atom(key) when is_binary(key), do: String.to_existing_atom(key)
+  defp to_atom("_" <> _), do: nil
+  defp to_atom(key) when is_binary(key), do: safe_to_atom(key)
+  defp to_atom(_), do: nil
 
-  defp default_for(:board_thickness_mm), do: 25
-  defp default_for(:stock_lengths_mm), do: [3600, 4800, 5400]
-  defp default_for(:gap_mm), do: 5
-  defp default_for(:end_gap_mm), do: 3
+  defp default_for(:board_thickness), do: 25
+  defp default_for(:stock_lengths), do: [3000, 3600, 4000]
+  defp default_for(:gap), do: 5
+  defp default_for(:end_gap), do: 3
   defp default_for(:board_direction), do: :along_length
-  defp default_for(:max_joist_spacing_mm), do: 400
-  defp default_for(:kerf_mm), do: 3
-  defp default_for(:min_reuse_mm), do: 300
+  defp default_for(:max_joist_spacing), do: 400
+  defp default_for(:kerf), do: 3
+  defp default_for(:min_reuse), do: 300
   defp default_for(:picture_frame), do: nil
+  defp default_for(:transverse_frame), do: nil
+  defp default_for(:transverse_max_segment_length), do: nil
+  defp default_for(:transverse_exact_segment), do: false
   defp default_for(_), do: nil
 
   defp cast(:pos_integer, v) do
@@ -206,15 +247,37 @@ defmodule DeckingCalc.Input do
     end
   end
 
+  defp cast(:boolean, v), do: {:ok, truthy?(v)}
+
+  defp cast(:optional_pos_integer, nil), do: {:ok, nil}
+  defp cast(:optional_pos_integer, ""), do: {:ok, nil}
+
+  defp cast(:optional_pos_integer, v) do
+    case cast(:pos_integer, v) do
+      {:ok, n} -> {:ok, n}
+      {:error, _} -> {:error, "must be a positive integer or leave blank for automatic"}
+    end
+  end
+
   defp cast(:picture_frame, nil), do: {:ok, nil}
 
   defp cast(:picture_frame, %{} = pf) do
     with {:ok, n} <- cast(:pos_integer, Map.get(pf, :border_boards, 1)) do
-      {:ok, %{border_boards: n, mitre: truthy?(Map.get(pf, :mitre, true))}}
+      {:ok, %{border_boards: n}}
     end
   end
 
   defp cast(:picture_frame, _), do: {:error, "invalid picture frame configuration"}
+
+  defp cast(:transverse_frame, nil), do: {:ok, nil}
+
+  defp cast(:transverse_frame, %{} = tf) do
+    with {:ok, n} <- cast(:pos_integer, Map.get(tf, :band_boards, 1)) do
+      {:ok, %{band_boards: n}}
+    end
+  end
+
+  defp cast(:transverse_frame, _), do: {:error, "invalid transverse frame configuration"}
 
   defp to_integer(v) when is_integer(v), do: {:ok, v}
   defp to_integer(v) when is_float(v), do: {:ok, trunc(v)}
