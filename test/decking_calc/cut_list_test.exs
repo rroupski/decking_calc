@@ -100,5 +100,27 @@ defmodule DeckingCalc.CutListTest do
       assert plan.total_waste == 0
       assert plan.unused_offcuts == []
     end
+
+    test "min_reuse: 0 terminates and produces a valid plan" do
+      # Regression: with min_reuse: 0, zero-length offcuts used to be
+      # reinserted into the offcut pool and then picked again for any
+      # remaining length, which made fill/6 loop forever and pin a CPU.
+      task =
+        Task.async(fn ->
+          CutList.plan(
+            [{{:field, 1}, 4000}, {{:field, 2}, 2000}, {{:field, 3}, 1500}],
+            stock_lengths: [3000, 4000],
+            kerf: 3,
+            min_reuse: 0
+          )
+        end)
+
+      plan = Task.await(task, 1_000)
+
+      assert is_map(plan)
+      assert length(plan.rows) == 3
+      assert plan.total_used == 4000 + 2000 + 1500
+      assert Enum.all?(plan.unused_offcuts, &(&1 > 0))
+    end
   end
 end

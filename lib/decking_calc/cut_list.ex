@@ -184,8 +184,12 @@ defmodule DeckingCalc.CutList do
         0
       end
 
+    # A non-positive `leftover` is never useful and, with `min_reuse: 0`,
+    # would otherwise be reinserted into the offcut pool and chosen by
+    # `pick_largest_offcut/2`, producing an infinite loop because no
+    # progress is made on `remaining`.
     acc =
-      if leftover >= min_reuse do
+      if leftover > 0 and leftover >= min_reuse do
         %{acc | offcuts: insert_offcut(acc.offcuts, leftover)}
       else
         acc
