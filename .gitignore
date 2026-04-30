@@ -35,3 +35,6 @@ decking_calc-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# Saved-version data managed by the running app at runtime.
+/priv/saved_versions.json
+

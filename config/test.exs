@@ -1,5 +1,9 @@
 import Config
 
+# Each test that touches saved versions is expected to set its own per-test
+# path; this default keeps any accidental writes inside the test build dir.
+config :decking_calc, :versions_path, Path.expand("../tmp/test_saved_versions.json", __DIR__)
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :decking_calc, DeckingCalcWeb.Endpoint,

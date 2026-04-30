@@ -16,7 +16,7 @@ defmodule DeckingCalcWeb.CalculatorLiveTest do
 
     html =
       view
-      |> form("form", calc: %{"patio_length" => "4000", "patio_width" => "4500"})
+      |> form("#calculator-form", calc: %{"patio_length" => "4000", "patio_width" => "4500"})
       |> render_change()
 
     assert html =~ "Field rows"
@@ -40,7 +40,9 @@ defmodule DeckingCalcWeb.CalculatorLiveTest do
 
     html =
       view
-      |> form("form", calc: %{"patio_width" => "3500", "board_width" => "150", "gap" => "5"})
+      |> form("#calculator-form",
+        calc: %{"patio_width" => "3500", "board_width" => "150", "gap" => "5"}
+      )
       |> render_change()
 
     assert html =~ "being ripped to"
@@ -53,7 +55,9 @@ defmodule DeckingCalcWeb.CalculatorLiveTest do
     # 3560 = 23×150 + 22×5 — perfect fit, margin 0
     html =
       view
-      |> form("form", calc: %{"patio_width" => "3560", "board_width" => "150", "gap" => "5"})
+      |> form("#calculator-form",
+        calc: %{"patio_width" => "3560", "board_width" => "150", "gap" => "5"}
+      )
       |> render_change()
 
     refute html =~ "being ripped to"
@@ -65,7 +69,9 @@ defmodule DeckingCalcWeb.CalculatorLiveTest do
 
     # Bring view to the ripped state (grow candidate is 3560, 60 mm away)
     view
-    |> form("form", calc: %{"patio_width" => "3500", "board_width" => "150", "gap" => "5"})
+    |> form("#calculator-form",
+      calc: %{"patio_width" => "3500", "board_width" => "150", "gap" => "5"}
+    )
     |> render_change()
 
     # Click the button
@@ -81,7 +87,9 @@ defmodule DeckingCalcWeb.CalculatorLiveTest do
 
     # patio_width=3415: shrink=3405 (10 away), grow=3560 (145 away) → shrink wins
     view
-    |> form("form", calc: %{"patio_width" => "3415", "board_width" => "150", "gap" => "5"})
+    |> form("#calculator-form",
+      calc: %{"patio_width" => "3415", "board_width" => "150", "gap" => "5"}
+    )
     |> render_change()
 
     html = view |> element("[phx-click='optimize_width']") |> render_click()
@@ -96,7 +104,7 @@ defmodule DeckingCalcWeb.CalculatorLiveTest do
     # along_width: rows stack across patio_length, which becomes the short axis.
     # patio_length=3500, board_width=150, gap=5 → same arithmetic as above → grow to 3560
     view
-    |> form("form",
+    |> form("#calculator-form",
       calc: %{
         "patio_length" => "3500",
         "patio_width" => "4000",

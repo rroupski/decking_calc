@@ -4,7 +4,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
   """
   use DeckingCalcWeb, :live_view
 
-  alias DeckingCalc.{Calculator, Input}
+  alias DeckingCalc.{Calculator, Input, Versions}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -13,16 +13,31 @@ defmodule DeckingCalcWeb.CalculatorLive do
     {:ok,
      socket
      |> assign(:page_title, "Decking Calculator")
+     |> assign(:current_version, nil)
+     |> assign(:version_dirty?, false)
+     |> assign(:version_name_input, "")
+     |> assign(:version_flash, nil)
+     |> assign(:saved_versions, Versions.list())
      |> assign_from_params(params)}
   end
 
   @impl true
   def handle_event("calculate", %{"calc" => params}, socket) do
-    {:noreply, assign_from_params(socket, params)}
+    {:noreply,
+     socket
+     |> mark_dirty_if_loaded()
+     |> clear_version_flash()
+     |> assign_from_params(params)}
   end
 
   def handle_event("reset", _params, socket) do
-    {:noreply, assign_from_params(socket, Input.default_params())}
+    {:noreply,
+     socket
+     |> assign(:current_version, nil)
+     |> assign(:version_dirty?, false)
+     |> assign(:version_name_input, "")
+     |> clear_version_flash()
+     |> assign_from_params(Input.default_params())}
   end
 
   def handle_event("optimize_width", _params, socket) do
@@ -38,11 +53,108 @@ defmodule DeckingCalcWeb.CalculatorLive do
           :along_width -> Map.put(params, "patio_length", optimal_short_axis)
         end
 
-      {:noreply, assign_from_params(socket, updated_params)}
+      {:noreply,
+       socket
+       |> mark_dirty_if_loaded()
+       |> clear_version_flash()
+       |> assign_from_params(updated_params)}
     else
       {:noreply, socket}
     end
   end
+
+  def handle_event("version_name_change", %{"version" => %{"name" => name}}, socket) do
+    {:noreply, assign(socket, :version_name_input, name)}
+  end
+
+  def handle_event("save_version", %{"version" => %{"name" => name}}, socket) do
+    handle_save(socket, name)
+  end
+
+  def handle_event("save_version", _params, socket) do
+    handle_save(socket, socket.assigns.version_name_input)
+  end
+
+  def handle_event("load_version", %{"version" => %{"name" => ""}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:current_version, nil)
+     |> assign(:version_dirty?, false)
+     |> assign(:version_name_input, "")
+     |> clear_version_flash()}
+  end
+
+  def handle_event("load_version", %{"version" => %{"name" => name}}, socket) do
+    case Versions.get(name) do
+      {:ok, params} ->
+        merged = Versions.merge_with_defaults(params)
+
+        {:noreply,
+         socket
+         |> assign(:current_version, name)
+         |> assign(:version_dirty?, false)
+         |> assign(:version_name_input, name)
+         |> assign(:version_flash, {:info, "Loaded \"#{name}\"."})
+         |> assign_from_params(merged)}
+
+      {:error, :not_found} ->
+        {:noreply,
+         socket
+         |> assign(:saved_versions, Versions.list())
+         |> assign(:version_flash, {:error, "That version no longer exists."})}
+    end
+  end
+
+  def handle_event("delete_version", %{"name" => name}, socket) do
+    case Versions.delete(name) do
+      :ok ->
+        current =
+          if socket.assigns.current_version == name, do: nil, else: socket.assigns.current_version
+
+        {:noreply,
+         socket
+         |> assign(:saved_versions, Versions.list())
+         |> assign(:current_version, current)
+         |> assign(:version_dirty?, false)
+         |> assign(
+           :version_name_input,
+           if(current, do: socket.assigns.version_name_input, else: "")
+         )
+         |> assign(:version_flash, {:info, "Deleted \"#{name}\"."})}
+
+      {:error, :not_found} ->
+        {:noreply,
+         socket
+         |> assign(:saved_versions, Versions.list())
+         |> assign(:version_flash, {:error, "That version no longer exists."})}
+    end
+  end
+
+  defp handle_save(socket, name) do
+    case Versions.save(name, socket.assigns.params) do
+      {:ok, %{name: saved_name}} ->
+        {:noreply,
+         socket
+         |> assign(:saved_versions, Versions.list())
+         |> assign(:current_version, saved_name)
+         |> assign(:version_dirty?, false)
+         |> assign(:version_name_input, saved_name)
+         |> assign(:version_flash, {:info, "Saved \"#{saved_name}\"."})}
+
+      {:error, :invalid_name} ->
+        {:noreply,
+         assign(socket, :version_flash, {:error, "Enter a name (1\u201360 characters)."})}
+
+      {:error, :invalid_params} ->
+        {:noreply, assign(socket, :version_flash, {:error, "Cannot save invalid parameters."})}
+    end
+  end
+
+  defp mark_dirty_if_loaded(socket) do
+    if socket.assigns.current_version, do: assign(socket, :version_dirty?, true), else: socket
+  end
+
+  defp clear_version_flash(socket), do: assign(socket, :version_flash, nil)
 
   defp assign_from_params(socket, params) do
     params = normalize_checkbox(params, "picture_frame_enabled")
@@ -91,9 +203,18 @@ defmodule DeckingCalcWeb.CalculatorLive do
         <Layouts.theme_toggle />
       </header>
 
+      <.versions_panel
+        saved_versions={@saved_versions}
+        current_version={@current_version}
+        version_dirty?={@version_dirty?}
+        version_name_input={@version_name_input}
+        version_flash={@version_flash}
+      />
+
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <.form
           for={@form}
+          id="calculator-form"
           phx-change="calculate"
           phx-submit="calculate"
           class="card bg-base-200 p-4 sm:p-6 space-y-4"
@@ -303,6 +424,112 @@ defmodule DeckingCalcWeb.CalculatorLive do
     </label>
     """
   end
+
+  attr :saved_versions, :list, required: true
+  attr :current_version, :any, required: true
+  attr :version_dirty?, :boolean, required: true
+  attr :version_name_input, :string, required: true
+  attr :version_flash, :any, required: true
+
+  defp versions_panel(assigns) do
+    ~H"""
+    <section id="saved-versions" class="card bg-base-200 p-4 sm:p-6 space-y-3">
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <h2 class="text-lg font-semibold">Saved versions</h2>
+        <%= if @current_version do %>
+          <span class="text-xs text-base-content/60">
+            Loaded: <strong class="text-base-content">{@current_version}</strong>
+            <%= if @version_dirty? do %>
+              <span class="text-warning ml-1">(modified)</span>
+            <% end %>
+          </span>
+        <% end %>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <.form
+          :let={_f}
+          for={%{}}
+          as={:version}
+          id="load-version-form"
+          phx-change="load_version"
+        >
+          <label class="form-control">
+            <div class="label"><span class="label-text">Open</span></div>
+            <select name="version[name]" class="select select-bordered" id="load-version-select">
+              <option value="">— Select a version —</option>
+              <%= for v <- @saved_versions do %>
+                <option value={v.name} selected={@current_version == v.name}>{v.name}</option>
+              <% end %>
+            </select>
+          </label>
+        </.form>
+
+        <.form
+          :let={_f}
+          for={%{}}
+          as={:version}
+          id="save-version-form"
+          phx-submit="save_version"
+          phx-change="version_name_change"
+          class="space-y-1"
+        >
+          <label class="form-control">
+            <div class="label"><span class="label-text">Save as</span></div>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                name="version[name]"
+                value={@version_name_input}
+                placeholder="Version name"
+                maxlength="60"
+                class="input input-bordered flex-1"
+                id="version-name-input"
+              />
+              <button type="submit" class="btn btn-primary" id="save-version-button">
+                {save_button_label(@current_version, @version_name_input)}
+              </button>
+            </div>
+          </label>
+        </.form>
+      </div>
+
+      <%= if @current_version do %>
+        <div class="flex items-center gap-3 pt-1">
+          <button
+            type="button"
+            phx-click="delete_version"
+            phx-value-name={@current_version}
+            data-confirm={"Delete saved version #{inspect(@current_version)}?"}
+            class="btn btn-ghost btn-xs text-error"
+            id="delete-version-button"
+          >
+            Delete current version
+          </button>
+        </div>
+      <% end %>
+
+      <%= if @version_flash do %>
+        <% {kind, msg} = @version_flash %>
+        <p
+          id="version-flash"
+          class={[
+            "text-sm",
+            if(kind == :error, do: "text-error", else: "text-success")
+          ]}
+        >
+          {msg}
+        </p>
+      <% end %>
+    </section>
+    """
+  end
+
+  defp save_button_label(current, name)
+       when is_binary(current) and is_binary(name) and current == name,
+       do: "Update"
+
+  defp save_button_label(_current, _name), do: "Save"
 
   attr :result, :map, required: true
 
