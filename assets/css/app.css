@@ -103,3 +103,148 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* ── Global polish ────────────────────────────────────────────────── */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100dvh;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ── Card depth & refinement ──────────────────────────────────────── */
+.card {
+  box-shadow: 0 1px 3px 0 oklch(0% 0 0 / 0.06), 0 1px 2px -1px oklch(0% 0 0 / 0.06);
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+[data-theme="dark"] .card {
+  box-shadow: 0 1px 3px 0 oklch(0% 0 0 / 0.25), 0 1px 2px -1px oklch(0% 0 0 / 0.2);
+}
+
+/* ── Form input refinements ───────────────────────────────────────── */
+.input,
+.select {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input:focus,
+.select:focus {
+  box-shadow: 0 0 0 3px oklch(58% 0.233 277.117 / 0.15);
+}
+
+[data-theme="light"] .input:focus,
+[data-theme="light"] .select:focus {
+  box-shadow: 0 0 0 3px oklch(70% 0.213 47.604 / 0.18);
+}
+
+.input-error:focus {
+  box-shadow: 0 0 0 3px oklch(58% 0.253 17.585 / 0.15);
+}
+
+/* ── Button transitions ───────────────────────────────────────────── */
+.btn {
+  transition: background-color 0.15s ease, box-shadow 0.15s ease,
+              transform 0.1s ease, opacity 0.15s ease;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ── Table polish ─────────────────────────────────────────────────── */
+.table th {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.table td {
+  transition: background-color 0.1s ease;
+}
+
+/* ── Stat card visual hierarchy ───────────────────────────────────── */
+.stat {
+  box-shadow: 0 1px 2px oklch(0% 0 0 / 0.04);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.stat:hover {
+  box-shadow: 0 2px 6px oklch(0% 0 0 / 0.08);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .stat {
+  box-shadow: 0 1px 2px oklch(0% 0 0 / 0.2);
+}
+
+[data-theme="dark"] .stat:hover {
+  box-shadow: 0 2px 6px oklch(0% 0 0 / 0.3);
+}
+
+.stat-title {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-feature-settings: "tnum";
+}
+
+/* ── Badge refinements ────────────────────────────────────────────── */
+.badge {
+  font-feature-settings: "tnum";
+  letter-spacing: 0.02em;
+}
+
+/* ── Diagram figure ───────────────────────────────────────────────── */
+figure svg {
+  border-radius: 0.375rem;
+}
+
+figcaption {
+  font-feature-settings: "tnum";
+}
+
+/* ── Custom scrollbar (Webkit) ────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: oklch(60% 0 0 / 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(60% 0 0 / 0.4);
+}
+
+/* ── Selection highlight ──────────────────────────────────────────── */
+::selection {
+  background: oklch(58% 0.233 277.117 / 0.25);
+}
+
+[data-theme="light"] ::selection {
+  background: oklch(70% 0.213 47.604 / 0.25);
+}
+
+/* ── LiveView page transition ─────────────────────────────────────── */
+.phx-connected {
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0.85; }
+  to   { opacity: 1; }
+}
