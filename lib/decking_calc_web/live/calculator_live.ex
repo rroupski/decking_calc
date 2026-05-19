@@ -192,7 +192,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
   def render(assigns) do
     ~H"""
     <Layouts.flash_group flash={@flash} />
-    <div class="p-4 sm:p-6 lg:p-8 space-y-6">
+    <div class="min-w-[640px] max-w-[1920px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       <header class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-semibold">Decking layout calculator</h1>
@@ -220,7 +220,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
           class="card bg-base-200 p-4 sm:p-6 space-y-4"
         >
           <h2 class="text-lg font-semibold">Patio</h2>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <.number_field
               field={@form[:patio_length]}
               label="Length (mm)"
@@ -234,7 +234,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
           </div>
 
           <h2 class="text-lg font-semibold pt-2">Boards</h2>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <.number_field
               field={@form[:board_width]}
               label="Board width (mm)"
@@ -246,12 +246,28 @@ defmodule DeckingCalcWeb.CalculatorLive do
               error={@errors[:board_thickness]}
             />
           </div>
-          <.text_field
-            field={@form[:stock_lengths]}
-            label="Stock lengths (mm, comma separated)"
-            error={@errors[:stock_lengths]}
-          />
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <.text_field
+              field={@form[:stock_lengths]}
+              label="Stock lengths (comma-separated)"
+              error={@errors[:stock_lengths]}
+            />
+            <label class="form-control">
+              <div class="label"><span class="label-text">Board direction</span></div>
+              <select
+                name="calc[board_direction]"
+                class="select select-bordered"
+              >
+                <option value="along_length" selected={@form[:board_direction].value == "along_length"}>
+                  Along length
+                </option>
+                <option value="along_width" selected={@form[:board_direction].value == "along_width"}>
+                  Along width
+                </option>
+              </select>
+            </label>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <.number_field field={@form[:gap]} label="Side gap (mm)" error={@errors[:gap]} />
             <.number_field
               field={@form[:end_gap]}
@@ -259,7 +275,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
               error={@errors[:end_gap]}
             />
           </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <.number_field field={@form[:kerf]} label="Kerf (mm)" error={@errors[:kerf]} />
             <.number_field
               field={@form[:min_reuse]}
@@ -268,27 +284,14 @@ defmodule DeckingCalcWeb.CalculatorLive do
             />
           </div>
 
-          <label class="form-control">
-            <div class="label"><span class="label-text">Board direction</span></div>
-            <select
-              name="calc[board_direction]"
-              class="select select-bordered"
-            >
-              <option value="along_length" selected={@form[:board_direction].value == "along_length"}>
-                Along length
-              </option>
-              <option value="along_width" selected={@form[:board_direction].value == "along_width"}>
-                Along width
-              </option>
-            </select>
-          </label>
-
           <h2 class="text-lg font-semibold pt-2">Joists</h2>
-          <.number_field
-            field={@form[:max_joist_spacing]}
-            label="Max joist spacing (mm)"
-            error={@errors[:max_joist_spacing]}
-          />
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <.number_field
+              field={@form[:max_joist_spacing]}
+              label="Max joist spacing (mm)"
+              error={@errors[:max_joist_spacing]}
+            />
+          </div>
 
           <h2 class="text-lg font-semibold pt-2">Picture frame</h2>
           <p class="text-xs text-base-content/70 -mt-2">
@@ -306,7 +309,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
             />
             <span class="label-text">Enable picture-frame end caps</span>
           </label>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <.number_field
               field={@form[:picture_frame_border_boards]}
               label="Cap boards per end"
@@ -331,13 +334,13 @@ defmodule DeckingCalcWeb.CalculatorLive do
             />
             <span class="label-text">Enable transverse breaker frame</span>
           </label>
-          <label class="label cursor-pointer justify-start gap-3 pl-1">
+          <label class="label cursor-pointer justify-start gap-3">
             <input type="hidden" name="calc[transverse_exact_segment]" value="false" />
             <input
               type="checkbox"
               name="calc[transverse_exact_segment]"
               value="true"
-              class="checkbox checkbox-sm"
+              class="checkbox"
               checked={checked?(@form[:transverse_exact_segment].value)}
             />
             <span class="label-text text-sm text-base-content/70">
@@ -345,7 +348,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
               <span class="text-base-content/40">(last segment may differ)</span>
             </span>
           </label>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <.number_field
               field={@form[:transverse_band_boards]}
               label="Band boards per breaker"
