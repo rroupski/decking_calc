@@ -192,7 +192,7 @@ defmodule DeckingCalcWeb.CalculatorLive do
   def render(assigns) do
     ~H"""
     <Layouts.flash_group flash={@flash} />
-    <div class="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8 space-y-6">
+    <div class="p-4 sm:p-6 lg:p-8 space-y-6">
       <header class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-semibold">Decking layout calculator</h1>
